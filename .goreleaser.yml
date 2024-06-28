@@ -1,12 +1,9 @@
 release:
   github:
     owner: ekristen
-    name: go-project-template
-env:
-  - REGISTRY=ghcr.io
-  - IMAGE=ekristen/go-project-template
+    name: distillery
 builds:
-  - id: go-project-template
+  - id: distillery
     goos:
       - linux
       - windows
@@ -38,64 +35,13 @@ builds:
 sboms:
   - artifacts: archive
 archives:
-  - id: go-project-template
+  - id: distillery
     builds:
-      - go-project-template
+      - distillery
     name_template: "{{ .ProjectName }}-v{{ .Version }}-{{ .Os }}-{{ .Arch }}{{ .Arm }}"
     format_overrides:
       - goos: windows
         format: zip
-dockers:
-  - id: linux-amd64
-    ids:
-      - go-project-template
-    use: buildx
-    goos: linux
-    goarch: amd64
-    dockerfile: Dockerfile
-    image_templates:
-      - '{{ .Env.REGISTRY }}/{{ .Env.IMAGE }}:v{{ .Version }}-amd64'
-      - '{{ .Env.REGISTRY }}/{{ .Env.IMAGE }}:{{ replace .Branch "/" "-" }}-{{ .ShortCommit }}-amd64-{{ .Timestamp }}'
-    build_flag_templates:
-      - "--platform=linux/amd64"
-      - "--target=goreleaser"
-      - "--pull"
-      - "--build-arg=PROJECT_NAME={{.ProjectName}}"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - '--label=org.opencontainers.image.source={{replace (replace (replace .GitURL "git@" "https://") ".git" "") "github.com:" "github.com/"}}'
-
-  - id: linux-arm64
-    ids:
-      - go-project-template
-    use: buildx
-    goos: linux
-    goarch: arm64
-    dockerfile: Dockerfile
-    image_templates:
-      - '{{ .Env.REGISTRY }}/{{ .Env.IMAGE }}:v{{ .Version }}-arm64'
-      - '{{ .Env.REGISTRY }}/{{ .Env.IMAGE }}:{{ replace .Branch "/" "-" }}-{{ .ShortCommit }}-arm64-{{ .Timestamp }}'
-    build_flag_templates:
-      - "--platform=linux/arm64"
-      - "--target=goreleaser"
-      - "--pull"
-      - "--build-arg=PROJECT_NAME={{.ProjectName}}"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - '--label=org.opencontainers.image.source={{replace (replace (replace .GitURL "git@" "https://") ".git" "") "github.com:" "github.com/"}}'
-docker_manifests:
-  - name_template: '{{ .Env.REGISTRY }}/{{ .Env.IMAGE }}:v{{ .Version }}'
-    image_templates:
-      - '{{ .Env.REGISTRY }}/{{ .Env.IMAGE }}:v{{ .Version }}-amd64'
-      - '{{ .Env.REGISTRY }}/{{ .Env.IMAGE }}:v{{ .Version }}-arm64'
-  - name_template: '{{ .Env.REGISTRY }}/{{ .Env.IMAGE }}:{{ replace .Branch "/" "-" }}-{{ .ShortCommit }}-{{ .Timestamp }}'
-    image_templates:
-      - '{{ .Env.REGISTRY }}/{{ .Env.IMAGE }}:{{ replace .Branch "/" "-" }}-{{ .ShortCommit }}-amd64-{{ .Timestamp }}'
-      - '{{ .Env.REGISTRY }}/{{ .Env.IMAGE }}:{{ replace .Branch "/" "-" }}-{{ .ShortCommit }}-arm64-{{ .Timestamp }}'
 signs:
   - ids:
       - default
@@ -105,12 +51,6 @@ signs:
     certificate: "${artifact}.pem"
     args: ["sign-blob", "--yes", "--oidc-provider=github", "--oidc-issuer=https://token.actions.githubusercontent.com", "--output-certificate=${certificate}", "--output-signature=${signature}", "${artifact}"]
     artifacts: all
-docker_signs:
-  - ids:
-      - default
-    artifacts: all
-    cmd: cosign
-    args: ["sign", "--yes", "--oidc-provider=github", "--oidc-issuer=https://token.actions.githubusercontent.com", "--output-certificate=${certificate}", "--output-signature=${signature}", "${artifact}"]
 checksum:
   name_template: "checksums.txt"
 snapshot:

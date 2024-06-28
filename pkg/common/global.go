@@ -12,23 +12,27 @@ import (
 func Flags() []cli.Flag {
 	globalFlags := []cli.Flag{
 		&cli.StringFlag{
-			Name:    "log-level",
-			Usage:   "Log Level",
-			Aliases: []string{"l"},
-			EnvVars: []string{"LOGLEVEL"},
-			Value:   "info",
+			Name:     "log-level",
+			Usage:    "Log Level",
+			Aliases:  []string{"l"},
+			EnvVars:  []string{"LOGLEVEL"},
+			Value:    "info",
+			Category: "Logging Options",
 		},
 		&cli.BoolFlag{
-			Name:  "log-caller",
-			Usage: "log the caller (aka line number and file)",
+			Name:     "log-caller",
+			Usage:    "log the caller (aka line number and file)",
+			Category: "Logging Options",
 		},
 		&cli.BoolFlag{
-			Name:  "log-disable-color",
-			Usage: "disable log coloring",
+			Name:     "log-disable-color",
+			Usage:    "disable log coloring",
+			Category: "Logging Options",
 		},
 		&cli.BoolFlag{
-			Name:  "log-full-timestamp",
-			Usage: "force log output to always show full timestamp",
+			Name:     "log-full-timestamp",
+			Usage:    "force log output to always show full timestamp",
+			Category: "Logging Options",
 		},
 	}
 

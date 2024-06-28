@@ -1,7 +1,7 @@
 package common
 
 // NAME of the App
-var NAME = "go-project-template"
+var NAME = "distillery"
 
 // SUMMARY of the Version
 var SUMMARY = "v1.0.0"

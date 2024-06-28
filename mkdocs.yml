@@ -1,8 +1,13 @@
-site_name: Go Project Template
-site_url: https://ekristen.github.io/go-project-template
-repo_name: ekristen/go-project-template
-repo_url: https://github.com/ekristen/go-project-template
-edit_uri: ""
+site_name: Distillery
+site_url: https://ekristen.github.io/distillery
+site_author: Erik Kristensen
+site_description: >-
+  Install any binary from any source, well ideally. A package manager without packages. Like homebrew, but less fizz (aka no package management)
+
+repo_name: ekristen/distillery
+repo_url: https://github.com/ekristen/distillery
+
+copyright: Copyright &copy; 2024 - Erik Kristensen
 
 site_dir: public
 
@@ -11,10 +16,38 @@ theme:
   name: material
   language: en
   palette:
-    primary: blue
-    accent: indigo
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/link
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: indigo
+      toggle:
+        icon: material/toggle-switch-off
+        name: Switch to system preference
   features:
+    - navigation.footer
+    - navigation.indexes
+    - navigation.path
     - navigation.sections
+    - navigation.tabs
+    - toc.follow
+    - toc.integrate
+    - content.code.annotate
+    - content.code.copy
+    - content.tooltips
+    - search.highlight
+    - search.share
+    - search.suggest
 
 # Plugins
 plugins:

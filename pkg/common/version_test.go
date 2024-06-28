@@ -7,6 +7,6 @@ import (
 )
 
 func TestVersion(t *testing.T) {
-	assert.Equal(t, "go-project-template", NAME)
+	assert.Equal(t, "distillery", NAME)
 	assert.Equal(t, "v1.0.0", SUMMARY)
 }

@@ -8,7 +8,9 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 
-	"github.com/ekristen/go-project-template/pkg/common"
+	"github.com/ekristen/distillery/pkg/common"
+
+	_ "github.com/ekristen/distillery/pkg/commands/install"
 )
 
 func main() {
@@ -24,12 +26,13 @@ func main() {
 
 	app := cli.NewApp()
 	app.Name = path.Base(os.Args[0])
-	app.Usage = common.AppVersion.Name
+	app.Usage = `install any binary from ideally any source`
+	app.Description = `install any binary from ideally any detectable source`
 	app.Version = common.AppVersion.Summary
 	app.Authors = []*cli.Author{
 		{
 			Name:  "Erik Kristensen",
-			Email: "erik@erikkristensen",
+			Email: "erik@erikkristensen.com",
 		},
 	}
 
@@ -38,7 +41,7 @@ func main() {
 
 	app.Commands = common.GetCommands()
 	app.CommandNotFound = func(context *cli.Context, command string) {
-		logrus.Fatalf("Command %s not found.", command)
+		logrus.Fatalf("command %s not found.", command)
 	}
 
 	ctx := signals.SetupSignalContext()
