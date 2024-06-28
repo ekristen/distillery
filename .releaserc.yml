@@ -7,5 +7,6 @@ branches:
   - name: main
   - name: next
     prerelease: true
-  - name: pre/rc
-    prerelease: '${name.replace(/^pre\\//g, "")}'
+  - name: alpha
+    prerelease: true
+    channel: alpha
