@@ -6,7 +6,7 @@ require (
 	github.com/apex/log v1.9.0
 	github.com/dsnet/compress v0.0.1
 	github.com/gabriel-vasile/mimetype v1.4.5
-	github.com/google/go-github/v62 v62.0.0
+	github.com/google/go-github/v65 v65.0.0
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
 	github.com/h2non/filetype v1.1.3
 	github.com/krolaw/zipstream v0.0.0-20180621105154-0a2661891f94
