@@ -26,9 +26,15 @@ This is an opinionated go project template to use as a starting point for new pr
 
 ### Opinionated Decisions
 
+<<<<<<< Updated upstream
 - Uses `init` functions for registering commands globally.
   - This allows for multiple `main` package files to be written and include different commands.
   - Allows the command code to remain isolated from each other and a simple import to include the command.
+=======
+- [ ] detect already installed versions
+- [ ] implement signature verification
+- [ ] implement uninstall
+>>>>>>> Stashed changes
 
 ### Multi-Platform Builds
 
