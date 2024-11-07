@@ -3,7 +3,7 @@ module github.com/ekristen/distillery
 go 1.22.4
 
 require (
-	github.com/ProtonMail/gopenpgp/v2 v2.7.5
+	github.com/ProtonMail/gopenpgp/v2 v2.8.0
 	github.com/apex/log v1.9.0
 	github.com/dsnet/compress v0.0.1
 	github.com/gabriel-vasile/mimetype v1.4.6
@@ -22,7 +22,7 @@ require (
 )
 
 require (
-	github.com/ProtonMail/go-crypto v0.0.0-20230717121422-5aa5874ade95 // indirect
+	github.com/ProtonMail/go-crypto v1.1.0 // indirect
 	github.com/ProtonMail/go-mime v0.0.0-20230322103455-7d82a3887f2f // indirect
 	github.com/cloudflare/circl v1.5.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.5 // indirect
