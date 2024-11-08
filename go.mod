@@ -22,7 +22,7 @@ require (
 )
 
 require (
-	github.com/ProtonMail/go-crypto v1.1.0 // indirect
+	github.com/ProtonMail/go-crypto v1.1.2 // indirect
 	github.com/ProtonMail/go-mime v0.0.0-20230322103455-7d82a3887f2f // indirect
 	github.com/cloudflare/circl v1.5.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.5 // indirect
