@@ -12,7 +12,7 @@ require (
 	github.com/h2non/filetype v1.1.3
 	github.com/krolaw/zipstream v0.0.0-20180621105154-0a2661891f94
 	github.com/pelletier/go-toml/v2 v2.2.3
-	github.com/rancher/wrangler v1.1.2
+	github.com/rancher/wrangler/v3 v3.1.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.9.0
 	github.com/ulikunitz/xz v0.5.12
