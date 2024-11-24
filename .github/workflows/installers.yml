@@ -10,7 +10,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
       - name: set-version
         run: |
@@ -18,7 +18,7 @@ jobs:
           sed -e "s/__VERSION__/${{ github.event.release.tag_name }}/" scripts/installer.tpl.ps1 > installer.ps1
 
       - name: upload
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@e7a8f85e1c67a31e6ed99a94b41bd0b71bbee6b8 # v2
         with:
           files: |
             installer.sh
