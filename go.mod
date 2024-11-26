@@ -3,7 +3,7 @@ module github.com/ekristen/distillery
 go 1.22.4
 
 require (
-	github.com/ProtonMail/gopenpgp/v2 v2.8.0
+	github.com/ProtonMail/gopenpgp/v2 v2.8.1
 	github.com/apex/log v1.9.0
 	github.com/dsnet/compress v0.0.1
 	github.com/gabriel-vasile/mimetype v1.4.7
