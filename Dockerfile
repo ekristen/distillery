@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.11-labs@sha256:abe0052c66a1352ebf6b2493c77459e4764af249d507c33e0d6176ac20075292
+# syntax=docker/dockerfile:1.12-labs@sha256:c0232100a2ae4603c5c6a8a97b77d002bbf994a69f19f70d7b487e1cd7fa5612
 FROM cgr.dev/chainguard/wolfi-base:latest@sha256:8dd9ceace8b1574e550374e9c07c2baafa60cc96223c1314fac61bd2edb48c70 as base
 ARG PROJECT_NAME=distillery
 RUN apk add --no-cache ca-certificates
