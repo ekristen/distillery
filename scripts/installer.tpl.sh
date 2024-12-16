@@ -24,6 +24,16 @@ case "$ARCH" in
 esac
 TAR_FILE="${FILE_BASENAME}-${VERSION}-${OS}-${ARCH}.tar.gz"
 
+function check_sha_version() {
+    local currentver=$1
+    local requiredver=$2
+    if [ "$(printf '%s\n' "$requiredver" $1 | sort -V | head -n1)" = "$requiredver" ]; then
+            return 0
+    else
+            return 1
+    fi
+}
+
 (
 	cd "$TMP_DIR"
 	echo "Downloading distillery $VERSION..."
@@ -31,12 +41,22 @@ TAR_FILE="${FILE_BASENAME}-${VERSION}-${OS}-${ARCH}.tar.gz"
 	curl -sfLO "$RELEASES_URL/download/$VERSION/checksums.txt"
 	echo "Verifying checksums..."
 	if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum --ignore-missing --quiet --check checksums.txt
-   elif command -v shasum >/dev/null 2>&1; then
-    shasum -a 256 -c checksums.txt
-   else
-    echo "Neither sha256sum nor shasum is available to verify checksums." >&2
-   fi
+        if check_sha_version "$(sha256sum --version 2>&1| sed '1q' | cut -f 3)" "8.25"; then
+            sha256sum --ignore-missing --quiet --check checksums.txt
+        else
+            grep "${TAR_FILE}$" checksums.txt > shasum.txt
+            sha256sum -c shasum.txt --status
+        fi
+    elif command -v shasum >/dev/null 2>&1; then
+        if check_sha_version "$(shasum --version)" "6.0.1"; then
+            shasum --ignore-missing -a 256 -c checksums.txt
+        else
+            grep "${TAR_FILE}$" checksums.txt > shasum.txt
+            shasum -c shasum.txt --status
+        fi
+    else
+        echo "Neither sha256sum nor shasum is available to verify checksums." >&2
+    fi
 	if command -v cosign >/dev/null 2>&1; then
 		echo "Verifying signatures..."
 		REF="refs/tags/$VERSION"
@@ -47,9 +67,9 @@ TAR_FILE="${FILE_BASENAME}-${VERSION}-${OS}-${ARCH}.tar.gz"
        --signature "$RELEASES_URL/download/$VERSION/checksums.txt.sig" \
        checksums.txt; then
         echo "Signature verification failed, continuing without verification."
-     else
+    else
       echo "Signature verification succeeded."
-     fi
+    fi
 	else
 		echo "Could not verify signatures, cosign is not installed."
 	fi
