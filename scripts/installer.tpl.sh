@@ -24,7 +24,7 @@ case "$ARCH" in
 esac
 TAR_FILE="${FILE_BASENAME}-${VERSION}-${OS}-${ARCH}.tar.gz"
 
-function check_sha_version() {
+check_sha_version() {
     local currentver=$1
     local requiredver=$2
     if [ "$(printf '%s\n' "$requiredver" $1 | sort -V | head -n1)" = "$requiredver" ]; then
