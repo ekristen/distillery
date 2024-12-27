@@ -76,6 +76,16 @@ func NewSource(src string, opts *provider.Options) (provider.ISource, error) { /
 				},
 				AppName: parts[1],
 			}, nil
+		} else if parts[0] == source.HelmSource {
+			return &source.Helm{
+				GitHub: source.GitHub{
+					Provider: provider.Provider{Options: opts, OSConfig: detectedOS},
+					Owner:    source.HelmSource,
+					Repo:     source.HelmSource,
+					Version:  version,
+				},
+				AppName: parts[1],
+			}, nil
 		}
 
 		switch opts.Config.DefaultSource {
@@ -111,6 +121,16 @@ func NewSource(src string, opts *provider.Options) (provider.ISource, error) { /
 						Provider: provider.Provider{Options: opts, OSConfig: detectedOS},
 						Owner:    source.KubernetesSource,
 						Repo:     source.KubernetesSource,
+						Version:  version,
+					},
+					AppName: parts[2],
+				}, nil
+			} else if parts[1] == source.HelmSource {
+				return &source.Helm{
+					GitHub: source.GitHub{
+						Provider: provider.Provider{Options: opts, OSConfig: detectedOS},
+						Owner:    source.HelmSource,
+						Repo:     source.HelmSource,
 						Version:  version,
 					},
 					AppName: parts[2],

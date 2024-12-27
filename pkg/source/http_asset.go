@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"github.com/ekristen/distillery/pkg/provider"
 	"io"
 	"net/http"
 	"os"
@@ -15,25 +16,25 @@ import (
 	"github.com/ekristen/distillery/pkg/common"
 )
 
-type KubernetesAsset struct {
+type HttpAsset struct {
 	*asset.Asset
 
-	Kubernetes *Kubernetes
-	URL        string
+	Source provider.ISource
+	URL    string
 }
 
-func (a *KubernetesAsset) ID() string {
+func (a *HttpAsset) ID() string {
 	urlHash := sha256.Sum256([]byte(a.URL))
 	urlHashShort := fmt.Sprintf("%x", urlHash)[:9]
 
 	return fmt.Sprintf("%s-%s", a.GetType(), urlHashShort)
 }
 
-func (a *KubernetesAsset) Path() string {
-	return filepath.Join(KubernetesSource, a.Kubernetes.AppName, a.Kubernetes.Version)
+func (a *HttpAsset) Path() string {
+	return filepath.Join(a.Source.GetSource(), a.Source.GetApp(), a.Source.GetVersion())
 }
 
-func (a *KubernetesAsset) Download(ctx context.Context) error {
+func (a *HttpAsset) Download(ctx context.Context) error {
 	cacheDir, err := os.UserCacheDir()
 	if err != nil {
 		return err
