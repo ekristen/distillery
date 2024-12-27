@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
-	"github.com/ekristen/distillery/pkg/provider"
 	"io"
 	"net/http"
 	"os"
@@ -14,27 +13,28 @@ import (
 
 	"github.com/ekristen/distillery/pkg/asset"
 	"github.com/ekristen/distillery/pkg/common"
+	"github.com/ekristen/distillery/pkg/provider"
 )
 
-type HttpAsset struct {
+type HTTPAsset struct {
 	*asset.Asset
 
 	Source provider.ISource
 	URL    string
 }
 
-func (a *HttpAsset) ID() string {
+func (a *HTTPAsset) ID() string {
 	urlHash := sha256.Sum256([]byte(a.URL))
 	urlHashShort := fmt.Sprintf("%x", urlHash)[:9]
 
 	return fmt.Sprintf("%s-%s", a.GetType(), urlHashShort)
 }
 
-func (a *HttpAsset) Path() string {
+func (a *HTTPAsset) Path() string {
 	return filepath.Join(a.Source.GetSource(), a.Source.GetApp(), a.Source.GetVersion())
 }
 
-func (a *HttpAsset) Download(ctx context.Context) error {
+func (a *HTTPAsset) Download(ctx context.Context) error {
 	cacheDir, err := os.UserCacheDir()
 	if err != nil {
 		return err

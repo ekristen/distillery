@@ -12,6 +12,7 @@ import (
 	"github.com/gregjones/httpcache/diskcache"
 
 	"github.com/ekristen/distillery/pkg/asset"
+	"github.com/ekristen/distillery/pkg/common"
 )
 
 const KubernetesSource = "kubernetes"
@@ -40,7 +41,7 @@ func (s *Kubernetes) GetID() string {
 
 func (s *Kubernetes) GetVersion() string {
 	if s.Release == nil {
-		return "unknown"
+		return common.Unknown
 	}
 
 	return strings.TrimPrefix(s.Release.GetTagName(), "v")
@@ -74,22 +75,22 @@ func (s *Kubernetes) sourceRun(ctx context.Context) error { //nolint:dupl
 
 func (s *Kubernetes) GetReleaseAssets(_ context.Context) error {
 	binName := fmt.Sprintf("%s-%s-%s-%s", s.AppName, s.Version, s.GetOS(), s.GetArch())
-	s.Assets = append(s.Assets, &HttpAsset{
+	s.Assets = append(s.Assets, &HTTPAsset{
 		Asset:  asset.New(binName, s.AppName, s.GetOS(), s.GetArch(), s.Version),
 		Source: s,
 		URL: fmt.Sprintf("https://dl.k8s.io/release/v%s/bin/%s/%s/%s",
 			s.Version, s.GetOS(), s.GetArch(), s.AppName),
-	}, &HttpAsset{
+	}, &HTTPAsset{
 		Asset:  asset.New(binName+".sha256", "", s.GetOS(), s.GetArch(), s.Version),
 		Source: s,
 		URL: fmt.Sprintf("https://dl.k8s.io/release/v%s/bin/%s/%s/%s.sha256",
 			s.Version, s.GetOS(), s.GetArch(), s.AppName),
-	}, &HttpAsset{
+	}, &HTTPAsset{
 		Asset:  asset.New(binName+".sig", "", s.GetOS(), s.GetArch(), s.Version),
 		Source: s,
 		URL: fmt.Sprintf("https://dl.k8s.io/release/v%s/bin/%s/%s/%s.sig",
 			s.Version, s.GetOS(), s.GetArch(), s.AppName),
-	}, &HttpAsset{
+	}, &HTTPAsset{
 		Asset:  asset.New(binName+".cert", "", s.GetOS(), s.GetArch(), s.Version),
 		Source: s,
 		URL: fmt.Sprintf("https://dl.k8s.io/release/v%s/bin/%s/%s/%s.cert",

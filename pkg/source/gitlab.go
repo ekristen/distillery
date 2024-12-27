@@ -11,6 +11,7 @@ import (
 
 	"github.com/ekristen/distillery/pkg/asset"
 	"github.com/ekristen/distillery/pkg/clients/gitlab"
+	"github.com/ekristen/distillery/pkg/common"
 	"github.com/ekristen/distillery/pkg/provider"
 )
 
@@ -47,7 +48,7 @@ func (s *GitLab) GetID() string {
 
 func (s *GitLab) GetVersion() string {
 	if s.Release == nil {
-		return "unknown"
+		return common.Unknown
 	}
 
 	return strings.TrimPrefix(s.Release.TagName, "v")

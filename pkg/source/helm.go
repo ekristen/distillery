@@ -12,6 +12,7 @@ import (
 	"github.com/gregjones/httpcache/diskcache"
 
 	"github.com/ekristen/distillery/pkg/asset"
+	"github.com/ekristen/distillery/pkg/common"
 )
 
 const HelmSource = "helm"
@@ -40,7 +41,7 @@ func (s *Helm) GetID() string {
 
 func (s *Helm) GetVersion() string {
 	if s.Release == nil {
-		return "unknown"
+		return common.Unknown
 	}
 
 	return strings.TrimPrefix(s.Release.GetTagName(), "v")
@@ -74,12 +75,12 @@ func (s *Helm) sourceRun(ctx context.Context) error { //nolint:dupl
 
 func (s *Helm) GetReleaseAssets(_ context.Context) error {
 	binName := fmt.Sprintf("%s-v%s-%s-%s.tar.gz", s.AppName, s.Version, s.GetOS(), s.GetArch())
-	s.Assets = append(s.Assets, &HttpAsset{
+	s.Assets = append(s.Assets, &HTTPAsset{
 		Asset:  asset.New(binName, s.AppName, s.GetOS(), s.GetArch(), s.Version),
 		Source: s,
 		URL: fmt.Sprintf("https://get.helm.sh/helm-v%s-%s-%s.tar.gz",
 			s.Version, s.GetOS(), s.GetArch()),
-	}, &HttpAsset{
+	}, &HTTPAsset{
 		Asset:  asset.New(binName+".sha256sum", "", s.GetOS(), s.GetArch(), s.Version),
 		Source: s,
 		URL: fmt.Sprintf("https://get.helm.sh/helm-v%s-%s-%s.tar.gz.sha256sum",

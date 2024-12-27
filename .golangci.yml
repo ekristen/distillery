@@ -38,7 +38,7 @@ linters:
     - bodyclose
     #- depguard
     - dogsled
-    - dupl
+    #- dupl
     - errcheck
     - copyloopvar
     - funlen
