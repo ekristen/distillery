@@ -17,7 +17,6 @@ var processedFiles = make(map[string]struct{})
 
 // Parse parses the given Distfile and returns a list of commands.
 func Parse(filePath string) ([]Command, error) {
-
 	if _, processed := processedFiles[filePath]; processed {
 		return nil, fmt.Errorf("circular inclusion detected: %s", filePath)
 	}
