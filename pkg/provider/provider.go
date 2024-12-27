@@ -228,7 +228,7 @@ func (p *Provider) discoverChecksum() error {
 			continue
 		}
 
-		ext := []string{"sha256", "md5", "sha1", "txt"}
+		ext := []string{"sha256", "md5", "sha1", "txt", "sha256sum", "sha1sum", "md5sum", "sha512", "sha512sum"}
 		if _, ok := fileScored[k]; !ok {
 			fileScored[k] = []score.Sorted{}
 		}
@@ -241,10 +241,15 @@ func (p *Provider) discoverChecksum() error {
 			WeightedTerms: map[string]int{
 				"checksums": 80,
 				"SHA512":    50,
+				"sha512sum": 50,
 				"SHA256":    40,
+				"sha256sum": 40,
 				"MD5":       30,
+				"md5sum":    30,
 				"SHA1":      20,
+				"sha1sum":   20,
 				"SHA":       15,
+				"shasum":    15,
 				"SUMS":      10,
 			},
 			InvalidOS:   p.OSConfig.InvalidOS(),
@@ -750,6 +755,7 @@ func (p *Provider) verifyChecksum() error {
 	logrus.Debug("verifying checksum")
 	logrus.Tracef("binary: %s", p.Binary.GetName())
 
+	// TODO: support other checksum functions
 	match, err := checksum.CompareHashWithChecksumFile(p.Binary.GetName(),
 		p.Binary.GetFilePath(), p.Checksum.GetFilePath(), sha256.New)
 	if err != nil {
