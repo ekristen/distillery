@@ -15,7 +15,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
 	github.com/ulikunitz/xz v0.5.12
-	github.com/urfave/cli/v2 v2.27.5
+	github.com/urfave/cli/v3 v3.0.0-alpha9.7
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8
 	gopkg.in/yaml.v3 v3.0.1
 )

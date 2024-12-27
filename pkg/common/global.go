@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"runtime"
@@ -8,16 +9,16 @@ import (
 	"github.com/apex/log"
 	clilog "github.com/apex/log/handlers/cli"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 func Flags() []cli.Flag {
 	globalFlags := []cli.Flag{
 		&cli.StringFlag{
+			Sources:  cli.EnvVars("LOG_LEVEL"),
 			Name:     "log-level",
 			Usage:    "Log Level",
 			Aliases:  []string{"l"},
-			EnvVars:  []string{"LOG_LEVEL"},
 			Value:    "info",
 			Category: "Logging Options",
 		},
@@ -41,7 +42,7 @@ func Flags() []cli.Flag {
 	return globalFlags
 }
 
-func Before(c *cli.Context) error {
+func Before(ctx context.Context, c *cli.Command) (context.Context, error) {
 	log.SetHandler(clilog.Default)
 
 	formatter := &logrus.TextFormatter{
@@ -76,5 +77,5 @@ func Before(c *cli.Context) error {
 		log.SetLevel(log.ErrorLevel)
 	}
 
-	return nil
+	return ctx, nil
 }

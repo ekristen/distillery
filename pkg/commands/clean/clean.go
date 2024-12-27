@@ -1,18 +1,19 @@
 package clean
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/apex/log"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
 	"github.com/ekristen/distillery/pkg/common"
 )
 
-func Execute(c *cli.Context) error { //nolint:gocyclo
+func Execute(ctx context.Context, c *cli.Command) error { //nolint:gocyclo
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return err
