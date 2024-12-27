@@ -77,7 +77,7 @@ func TestOS_GetArchitectures(t *testing.T) {
 		{
 			name:     "Windows AMD64",
 			os:       osconfig.New(osconfig.Windows, osconfig.AMD64),
-			expected: []string{"amd64", "x86_64", "64bit", "x64", "x86", "64-bit", "x86-64"},
+			expected: []string{"amd64", "x86_64", "64bit", "x64", "64-bit", "x86-64"},
 		},
 		{
 			name:     "Linux ARM64",
@@ -87,7 +87,7 @@ func TestOS_GetArchitectures(t *testing.T) {
 		{
 			name:     "Darwin Universal",
 			os:       osconfig.New(osconfig.Darwin, osconfig.AMD64),
-			expected: []string{"amd64", "x86_64", "64bit", "x64", "x86", "64-bit", "x86-64", "universal"},
+			expected: []string{"amd64", "x86_64", "64bit", "x64", "64-bit", "x86-64", "universal"},
 		},
 	}
 

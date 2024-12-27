@@ -59,6 +59,7 @@ func Score(names []string, opts *Options) []Sorted { //nolint:gocyclo
 
 		// Note: if it has the word "update" in it, we want to deprioritize it as it's likely an update binary from
 		// a rust or go binary distribution
+		// TODO: move this out of the function to a weighted term
 		scoringValues["update"] = -100
 		scoringValues["-keyless.sig"] = -10
 

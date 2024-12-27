@@ -8,11 +8,15 @@ const (
 
 	AMD64 = "amd64"
 	ARM64 = "arm64"
+	ARM32 = "arm32" // note: there is no such thing as arm32, but this is just to standardize the naming
+	AMD32 = "amd32" // note: there is no such thing as amd32, but this is just to standardize the naming
 )
 
 var (
-	AMD64Architectures = []string{"amd64", "x86_64", "x86-64", "64bit", "x64", "x86", "64-bit"}
+	AMD64Architectures = []string{"amd64", "x86_64", "x86-64", "64bit", "x64", "64-bit"}
 	ARM64Architectures = []string{"arm64", "aarch64", "armv8-a", "arm64-bit"}
+	X86Architectures   = []string{"x86", "i686", "i386"}
+	ARM32Architectures = []string{"armv7", "armv6", "armv5", "armv4"}
 )
 
 type OS struct {
@@ -62,6 +66,10 @@ func (o *OS) InvalidArchitectures() []string {
 		return AMD64Architectures
 	case AMD64:
 		return ARM64Architectures
+	case ARM32:
+		return ARM32Architectures
+	case AMD32:
+		return ARM64Architectures
 	}
 
 	return []string{}
@@ -91,6 +99,10 @@ func New(os, arch string) *OS {
 		newOS.Architectures = append(newOS.Architectures, AMD64Architectures...)
 	case ARM64:
 		newOS.Architectures = append(newOS.Architectures, ARM64Architectures...)
+	case ARM32:
+		newOS.Architectures = append(newOS.Architectures, ARM32Architectures...)
+	case AMD32:
+		newOS.Architectures = append(newOS.Architectures, X86Architectures...)
 	}
 
 	newOS.Architectures = removeDuplicateStr(newOS.Architectures)

@@ -56,9 +56,11 @@ func CompareHashWithChecksumFile(srcFilename, srcFilePath, checksumFilePath stri
 		if len(parts) > 1 {
 			fileHash = parts[0]
 			hashFilename = parts[1]
-		} else {
+		} else if len(parts) > 0 {
 			fileHash = parts[0]
 			hashFilename = srcFilename
+		} else {
+			return false, fmt.Errorf("unable to find hash and filename in checksum file")
 		}
 
 		log.Trace("fileHash: ", fileHash)
