@@ -567,9 +567,20 @@ func (p *Provider) Verify() error {
 }
 
 func (p *Provider) verifySignature() error {
-	if p.Signature == nil {
-		log.Warn("skipping signature verification (no signature)")
+	if v, ok := p.Options.Settings["no-signature-verify"]; ok && v.(bool) {
+		log.Warn("skipping signature verification (user-requested)")
 		return nil
+	}
+
+	if p.Signature == nil {
+		if p.Options.Config.Settings.SignatureMissing == "ignore" {
+			return nil
+		} else if p.Options.Config.Settings.SignatureMissing == "warn" {
+			log.Warn("skipping signature verification (no signature)")
+			return nil
+		} else if p.Options.Config.Settings.SignatureMissing == "error" {
+			return errors.New("signature verification failed (no signature)")
+		}
 	}
 
 	// TODO: better pgp detection
@@ -721,13 +732,19 @@ func (p *Provider) verifyCosignSignature() error { //nolint:gocyclo
 // verifyChecksum - verify the checksum of the binary
 func (p *Provider) verifyChecksum() error {
 	if v, ok := p.Options.Settings["no-checksum-verify"]; ok && v.(bool) {
-		log.Warn("skipping checksum verification")
+		log.Warn("skipping checksum verification (user-requested)")
 		return nil
 	}
 
 	if p.Checksum == nil {
-		log.Warn("skipping checksum verification (no checksum)")
-		return nil
+		if p.Options.Config.Settings.ChecksumMissing == "ignore" {
+			return nil
+		} else if p.Options.Config.Settings.ChecksumMissing == "warn" {
+			log.Warn("skipping checksum verification (no checksum)")
+			return nil
+		} else if p.Options.Config.Settings.ChecksumMissing == "error" {
+			return errors.New("checksum verification failed (no checksum)")
+		}
 	}
 
 	logrus.Debug("verifying checksum")

@@ -24,3 +24,28 @@ The configuration file is optional. If it is not found, the default configuratio
     ```toml
     default_provider = "github"
     ```
+
+## Aliases
+
+Aliases are useful shortcuts for repositories. See [Aliases](config/aliases.md) for more information.
+
+## Settings
+
+- `checksum-missing` (string): This is the behavior when a checksum is missing. The default is `warn`, valid values are `warn`, `error`, and `ignore`.
+- `signature-missing` (string): This is the behavior when a signature is missing. The default is `warn`, valid values are `warn`, `error`, and `ignore`.
+
+=== "YAML"
+
+    ```yaml
+    settings:
+      checksum-missing: warn
+      signature-missing: warn
+    ```
+
+=== "TOML"
+
+    ```toml
+    [settings]
+    checksum-missing = "warn"
+    signature-missing = "warn"
+    ```
