@@ -17,3 +17,12 @@ func RegisterCommand(command *cli.Command) {
 func GetCommands() []*cli.Command {
 	return commands["_main_"]
 }
+
+func GetCommand(name string) *cli.Command {
+	for _, command := range commands["_main_"] {
+		if command.Name == name {
+			return command
+		}
+	}
+	return nil
+}
