@@ -17,7 +17,7 @@ import (
 	"github.com/ekristen/distillery/pkg/provider"
 )
 
-func Execute(c *cli.Context) error { //nolint:gocyclo
+func Execute(c *cli.Context) error { //nolint:gocyclo,funlen
 	start := time.Now().UTC()
 
 	cfg, err := config.New(c.String("config"))
@@ -32,10 +32,21 @@ func Execute(c *cli.Context) error { //nolint:gocyclo
 	inv := inventory.New(os.DirFS(cfg.BinPath), cfg.BinPath, cfg.GetOptPath(), cfg)
 
 	name := c.Args().First()
-	alias := cfg.GetAlias(c.Args().First())
+	nameParts := strings.Split(name, "@")
+	alias := cfg.GetAlias(nameParts[0])
 	if alias != nil {
 		name = alias.Name
-		_ = c.Set("version", alias.Version)
+		version := alias.Version
+		if len(nameParts) > 1 {
+			if version != "latest" {
+				log.Warn("version specified via cli and alias, ignoring alias version")
+			}
+			version = nameParts[1]
+		}
+
+		_ = c.Set("version", version)
+
+		name = fmt.Sprintf("%s@%s", name, version)
 	}
 
 	if name == "ekristen/distillery" {
