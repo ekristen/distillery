@@ -40,6 +40,9 @@ type Config struct {
 	// Providers - allow for custom providers that uses one of the build in providers as a base. A good example of this
 	// is gitlab.alpinelinux.org, since gitlab is open source, you can use the gitlab provider as a base
 	Providers map[string]*Provider `yaml:"providers" toml:"providers"`
+
+	// Settings - settings to control the behavior of distillery
+	Settings *Settings `yaml:"settings" toml:"settings"`
 }
 
 func (c *Config) GetPath() string {
@@ -148,6 +151,11 @@ func New(path string) (*Config, error) {
 	if cfg.BinPath == "" {
 		cfg.BinPath = filepath.Join(cfg.Path, "bin")
 	}
+
+	if cfg.Settings == nil {
+		cfg.Settings = &Settings{}
+	}
+	cfg.Settings.Defaults()
 
 	return cfg, nil
 }
