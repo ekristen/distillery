@@ -61,7 +61,7 @@ func Execute(c *cli.Context) error { //nolint:gocyclo,funlen
 			"version":              c.String("version"),
 			"github-token":         c.String("github-token"),
 			"gitlab-token":         c.String("gitlab-token"),
-			"no-signature-verify":  c.String("no-signature-verify"),
+			"no-signature-verify":  c.Bool("no-signature-verify"),
 			"no-checksum-verify":   c.Bool("no-checksum-verify"),
 			"no-score-check":       c.Bool("no-score-check"),
 			"include-pre-releases": c.Bool("include-pre-releases"),
