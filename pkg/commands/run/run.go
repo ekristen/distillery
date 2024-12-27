@@ -1,11 +1,12 @@
 package run
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
 	"github.com/ekristen/distillery/pkg/common"
 	"github.com/ekristen/distillery/pkg/config"
@@ -32,7 +33,7 @@ func discover(cwd string) (string, error) {
 	return "", errors.New("no Distfile found in current directory or $HOME")
 }
 
-func Execute(c *cli.Context) error {
+func Execute(ctx context.Context, c *cli.Command) error {
 	var df string
 	if c.Args().Len() == 0 {
 		// Check current working directory
@@ -70,10 +71,9 @@ func Execute(c *cli.Context) error {
 
 	for _, command := range commands {
 		if command.Action == "install" {
-			ctx := cli.NewContext(c.App, nil, nil)
 			a := []string{"install"}
 			a = append(a, command.Args...)
-			if err := instCmd.Run(ctx, a...); err != nil {
+			if err := instCmd.Run(ctx, a); err != nil {
 				return err
 			}
 		}

@@ -1,10 +1,11 @@
 package proof
 
 import (
+	"context"
 	"fmt"
 	"os"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
 	"github.com/ekristen/distillery/pkg/common"
 	"github.com/ekristen/distillery/pkg/config"
@@ -12,7 +13,7 @@ import (
 	"github.com/ekristen/distillery/pkg/inventory"
 )
 
-func Execute(c *cli.Context) error {
+func Execute(ctx context.Context, c *cli.Command) error {
 	cfg, err := config.New(c.String("config"))
 	if err != nil {
 		return err
@@ -38,7 +39,7 @@ func init() {
 	cmd := &cli.Command{
 		Name:    "proof",
 		Aliases: []string{"export"},
-		Usage:   "proof",
+		Usage:   "generate a Distfile",
 		Action:  Execute,
 	}
 
