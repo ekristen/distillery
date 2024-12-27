@@ -13,27 +13,28 @@ import (
 
 	"github.com/ekristen/distillery/pkg/asset"
 	"github.com/ekristen/distillery/pkg/common"
+	"github.com/ekristen/distillery/pkg/provider"
 )
 
-type KubernetesAsset struct {
+type HTTPAsset struct {
 	*asset.Asset
 
-	Kubernetes *Kubernetes
-	URL        string
+	Source provider.ISource
+	URL    string
 }
 
-func (a *KubernetesAsset) ID() string {
+func (a *HTTPAsset) ID() string {
 	urlHash := sha256.Sum256([]byte(a.URL))
 	urlHashShort := fmt.Sprintf("%x", urlHash)[:9]
 
 	return fmt.Sprintf("%s-%s", a.GetType(), urlHashShort)
 }
 
-func (a *KubernetesAsset) Path() string {
-	return filepath.Join(KubernetesSource, a.Kubernetes.AppName, a.Kubernetes.Version)
+func (a *HTTPAsset) Path() string {
+	return filepath.Join(a.Source.GetSource(), a.Source.GetApp(), a.Source.GetVersion())
 }
 
-func (a *KubernetesAsset) Download(ctx context.Context) error {
+func (a *HTTPAsset) Download(ctx context.Context) error {
 	cacheDir, err := os.UserCacheDir()
 	if err != nil {
 		return err

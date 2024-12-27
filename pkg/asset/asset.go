@@ -157,9 +157,14 @@ func (a *Asset) GetParentType() Type {
 func (a *Asset) GetChecksumType() string {
 	name := strings.ToLower(a.Name)
 	if strings.HasSuffix(name, ".sha512") ||
+		strings.HasSuffix(name, ".sha512sum") ||
 		strings.HasSuffix(name, ".sha256") ||
+		strings.HasSuffix(name, ".sha256sum") ||
 		strings.HasSuffix(name, ".md5") ||
-		strings.HasSuffix(name, ".sha1") {
+		strings.HasSuffix(name, ".md5sum") ||
+		strings.HasSuffix(name, ".sha1") ||
+		strings.HasSuffix(name, ".sha1sum") ||
+		strings.HasSuffix(name, ".shasum") {
 		return ChecksumTypeFile
 	}
 	if strings.Contains(name, "checksums") ||
@@ -233,7 +238,15 @@ func (a *Asset) Classify(name string) Type { //nolint:gocyclo
 	if aType == Unknown {
 		logrus.Tracef("classifying asset based on name: %s", name)
 		name = strings.ToLower(name)
-		if strings.HasSuffix(name, ".sha256") || strings.HasSuffix(name, ".md5") || strings.HasSuffix(name, ".sha1") {
+		if strings.HasSuffix(name, ".sha512") ||
+			strings.HasSuffix(name, ".sha512sum") ||
+			strings.HasSuffix(name, ".sha256") ||
+			strings.HasSuffix(name, ".sha256sum") ||
+			strings.HasSuffix(name, ".md5") ||
+			strings.HasSuffix(name, ".md5sum") ||
+			strings.HasSuffix(name, ".sha1") ||
+			strings.HasSuffix(name, ".sha1sum") ||
+			strings.HasSuffix(name, ".shasum") {
 			aType = Checksum
 		}
 		if strings.Contains(name, "checksums") {
