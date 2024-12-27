@@ -130,10 +130,13 @@ func (p *Provider) discoverBinary(names []string, version string) error { //noli
 		}
 
 		fileScored[k] = score.Score(v, &score.Options{
-			OS:                detectedOS,
-			Arch:              arch,
-			Extensions:        ext,
-			Terms:             names,
+			OS:         detectedOS,
+			Arch:       arch,
+			Extensions: ext,
+			Terms:      names,
+			WeightedTerms: map[string]int{
+				"source": -20, // as in source.tar.gz
+			},
 			Versions:          []string{version},
 			InvalidOS:         p.OSConfig.InvalidOS(),
 			InvalidArch:       p.OSConfig.InvalidArchitectures(),
@@ -226,16 +229,14 @@ func (p *Provider) discoverChecksum() error {
 		}
 
 		ext := []string{"sha256", "md5", "sha1", "txt"}
-		var detectedOS []string
-		var arch []string
-
 		if _, ok := fileScored[k]; !ok {
 			fileScored[k] = []score.Sorted{}
 		}
 
 		fileScored[k] = score.Score(v, &score.Options{
-			OS:         detectedOS,
-			Arch:       arch,
+			OS:         p.OSConfig.GetAliases(),
+			Arch:       p.OSConfig.GetArchitectures(),
+			Names:      []string{p.Binary.GetName()},
 			Extensions: ext,
 			WeightedTerms: map[string]int{
 				"checksums": 80,
