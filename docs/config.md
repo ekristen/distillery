@@ -1,5 +1,12 @@
 # Configuration
 
+## Zero Configuration Philosophy
+
+**distillery** is designed to work out of the box with no configuration for most users. **distillery** has sensible
+defaults.
+
+## Location
+
 The default location for the configuration file is operating system dependent. YAML and TOML are supported.
 
 - On macOS, it is located at `~/.config/distillery.yaml`

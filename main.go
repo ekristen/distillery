@@ -16,6 +16,8 @@ import (
 	_ "github.com/ekristen/distillery/pkg/commands/info"
 	_ "github.com/ekristen/distillery/pkg/commands/install"
 	_ "github.com/ekristen/distillery/pkg/commands/list"
+	_ "github.com/ekristen/distillery/pkg/commands/proof"
+	_ "github.com/ekristen/distillery/pkg/commands/run"
 	_ "github.com/ekristen/distillery/pkg/commands/uninstall"
 )
 
