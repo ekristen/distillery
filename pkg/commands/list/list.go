@@ -1,18 +1,19 @@
 package list
 
 import (
+	"context"
 	"os"
 	"strings"
 
 	"github.com/apex/log"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
 	"github.com/ekristen/distillery/pkg/common"
 	"github.com/ekristen/distillery/pkg/config"
 	"github.com/ekristen/distillery/pkg/inventory"
 )
 
-func Execute(c *cli.Context) error {
+func Execute(ctx context.Context, c *cli.Command) error {
 	cfg, err := config.New(c.String("config"))
 	if err != nil {
 		return err

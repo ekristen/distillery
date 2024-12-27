@@ -1,13 +1,14 @@
 package completion
 
 import (
+	"context"
 	"embed"
 	"fmt"
 	"os"
 	"slices"
 	"strings"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
 	"github.com/ekristen/distillery/pkg/common"
 )
@@ -15,7 +16,7 @@ import (
 //go:embed files/*
 var files embed.FS
 
-func execute(c *cli.Context) error {
+func execute(ctx context.Context, c *cli.Command) error {
 	var autocomplete []byte
 	var err error
 	switch c.String("shell") {
@@ -46,7 +47,7 @@ func init() {
 			Name:  "shell",
 			Usage: "shell to generate completion script for",
 			Value: shellValue,
-			Action: func(c *cli.Context, val string) error {
+			Action: func(ctx context.Context, c *cli.Command, val string) error {
 				validShells := []string{"bash", "zsh"}
 				if !slices.Contains(validShells, val) {
 					return fmt.Errorf("unsupported shell %s", val)

@@ -1,6 +1,7 @@
 package uninstall
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,7 +10,7 @@ import (
 
 	"github.com/apex/log"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
 	"github.com/ekristen/distillery/pkg/common"
 	"github.com/ekristen/distillery/pkg/config"
@@ -18,7 +19,7 @@ import (
 	"github.com/ekristen/distillery/pkg/commands/install"
 )
 
-func Execute(c *cli.Context) error {
+func Execute(ctx context.Context, c *cli.Command) error {
 	cfg, err := config.New(c.String("config"))
 	if err != nil {
 		return err
@@ -101,9 +102,9 @@ func Execute(c *cli.Context) error {
 	return nil
 }
 
-func Before(c *cli.Context) error {
+func Before(ctx context.Context, c *cli.Command) (context.Context, error) {
 	if c.NArg() == 0 {
-		return fmt.Errorf("no binary specified")
+		return ctx, fmt.Errorf("no binary specified")
 	}
 
 	if c.NArg() > 1 {
@@ -111,7 +112,7 @@ func Before(c *cli.Context) error {
 			if arg == "--no-dry-run" {
 				_ = c.Set("no-dry-run", "true")
 			} else if strings.HasPrefix(arg, "-") {
-				return fmt.Errorf("flags must be specified before the binary(ies)")
+				return ctx, fmt.Errorf("flags must be specified before the binary(ies)")
 			}
 		}
 	}
@@ -122,26 +123,26 @@ func Before(c *cli.Context) error {
 	} else if len(parts) == 1 {
 		_ = c.Set("version", "latest")
 	} else {
-		return fmt.Errorf("invalid binary specified")
+		return ctx, fmt.Errorf("invalid binary specified")
 	}
 
 	if c.String("bin") != "" {
 		_ = c.Set("bins", "false")
 	}
 
-	return common.Before(c)
+	return common.Before(ctx, c)
 }
 
 func Flags() []cli.Flag {
 	cfgDir, _ := os.UserConfigDir()
 
 	return []cli.Flag{
-		&cli.PathFlag{
+		&cli.StringFlag{
 			Name:    "config",
 			Aliases: []string{"c"},
 			Usage:   "Specify the configuration file to use",
-			EnvVars: []string{"DISTILLERY_CONFIG"},
 			Value:   filepath.Join(cfgDir, fmt.Sprintf("%s.yaml", common.NAME)),
+			Sources: cli.EnvVars("DISTILLERY_CONFIG"),
 		},
 		&cli.BoolFlag{
 			Name:  "no-dry-run",

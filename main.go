@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/apex/log"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
 	"github.com/ekristen/distillery/pkg/common"
 	"github.com/ekristen/distillery/pkg/signals"
@@ -32,30 +34,25 @@ func main() {
 		}
 	}()
 
-	app := cli.NewApp()
-	app.Name = path.Base(os.Args[0])
-	app.Usage = `install any binary from ideally any source`
-	app.Description = `install any binary from ideally any detectable source`
-	app.Version = common.AppVersion.Summary
-	app.Authors = []*cli.Author{
-		{
-			Name:  "Erik Kristensen",
-			Email: "erik@erikkristensen.com",
+	app := &cli.Command{
+		Name:        path.Base(os.Args[0]),
+		Usage:       `install any binary from ideally any source`,
+		Description: `install any binary from ideally any detectable source`,
+		Version:     strings.TrimLeft(common.AppVersion.Summary, "v"),
+		Before:      common.Before,
+		Flags:       common.Flags(),
+		Commands:    common.GetCommands(),
+		CommandNotFound: func(ctx context.Context, c *cli.Command, command string) {
+			log.Fatalf("command %s not found.", command)
+		},
+		EnableShellCompletion: true,
+		Authors: []any{
+			"Erik Kristensen <erik@erikkristensen.com>",
 		},
 	}
 
-	app.Before = common.Before
-	app.Flags = common.Flags()
-
-	app.Commands = common.GetCommands()
-	app.CommandNotFound = func(context *cli.Context, command string) {
-		log.Fatalf("command %s not found.", command)
-	}
-
-	app.EnableBashCompletion = true
-
 	ctx := signals.SetupSignalContext()
-	if err := app.RunContext(ctx, os.Args); err != nil {
+	if err := app.Run(ctx, os.Args); err != nil {
 		log.Error(err.Error())
 	}
 }
