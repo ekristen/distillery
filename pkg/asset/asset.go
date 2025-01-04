@@ -1,15 +1,10 @@
 package asset
 
 import (
-	"archive/tar"
-	"compress/bzip2"
-	"compress/gzip"
 	"context"
 	"errors"
 	"fmt"
-	"github.com/mholt/archives"
 	"io"
-	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -21,8 +16,8 @@ import (
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/h2non/filetype"
 	"github.com/h2non/filetype/matchers"
+	"github.com/mholt/archives"
 	"github.com/sirupsen/logrus"
-	"github.com/xi2/xz"
 
 	"github.com/ekristen/distillery/pkg/common"
 	"github.com/ekristen/distillery/pkg/osconfig"
@@ -82,9 +77,6 @@ const (
 	ChecksumTypeFile  = "single"
 	ChecksumTypeMulti = "multi"
 )
-
-// processorFunc is a function that processes a reader
-type processorFunc func(io.Reader) (io.Reader, error)
 
 // New creates a new asset
 func New(name, displayName, osName, osArch, version string) *Asset {
@@ -148,7 +140,7 @@ func (a *Asset) GetBaseName() string {
 	for {
 		newFilename := filename
 		newExt := filepath.Ext(newFilename)
-		if len(newExt) > 5 || strings.Contains("_", newExt) {
+		if len(newExt) > 5 || strings.Contains(newExt, "_") {
 			break
 		}
 
@@ -498,36 +490,28 @@ func (a *Asset) doExtract(stream io.Reader) error {
 		}
 	} else {
 		logrus.Debug("processing direct file")
-		newReader, err := a.processDirect(stream)
-		if err != nil {
+		if err := a.processDirect(stream); err != nil {
 			return err
 		}
-
-		if newReader == nil {
-			return nil
-		}
-
-		// In case of e.g. a .tar.gz, process the uncompressed archive by calling recursively
-		return a.doExtract(newReader)
 	}
 
 	return nil
 }
 
-func (a *Asset) processDirect(in io.Reader) (io.Reader, error) {
+func (a *Asset) processDirect(in io.Reader) error {
 	logrus.Tracef("processing direct file")
 	outFile, err := os.Create(filepath.Join(a.TempDir, filepath.Base(a.DownloadPath)))
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if _, err := io.Copy(outFile, in); err != nil {
-		return nil, err
+		return err
 	}
 
 	a.Files = append(a.Files, &File{Name: filepath.Base(a.DownloadPath), Alias: a.GetName()})
 
-	return nil, nil
+	return nil
 }
 
 func (a *Asset) processArchive(ctx context.Context, f archives.FileInfo) error {
@@ -569,153 +553,6 @@ func (a *Asset) processArchive(ctx context.Context, f archives.FileInfo) error {
 	return nil
 }
 
-func (a *Asset) processZip(in io.Reader) (io.Reader, error) {
-	var format archives.Zip
-
-	err := format.Extract(context.TODO(), in, func(ctx context.Context, f archives.FileInfo) error {
-		// do something with the file here; or, if you only want a specific file or directory,
-		// just return until you come across the desired f.NameInArchive value(s)
-		target := filepath.Join(a.TempDir, f.Name())
-		logrus.Tracef("zip > target %s", target)
-
-		if f.Mode().IsDir() {
-			if _, err := os.Stat(target); err != nil {
-				if err := os.MkdirAll(target, 0755); err != nil {
-					return err
-				}
-				logrus.Tracef("tar > create directory %s", target)
-			}
-
-			return nil
-		}
-
-		tc, err := f.Open()
-		if err != nil {
-			return err
-		}
-
-		nf, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, f.Mode())
-		if err != nil {
-			return err
-		}
-
-		// copy over contents
-		if _, err := io.Copy(nf, tc); err != nil {
-			return err
-		}
-
-		a.Files = append(a.Files, &File{Name: f.Name()})
-
-		logrus.Tracef("zip > create file %s", target)
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	if len(a.Files) == 0 {
-		return nil, fmt.Errorf("no files found in zip archive")
-	}
-
-	return nil, nil
-}
-
-func (a *Asset) processTar(in io.Reader) (io.Reader, error) {
-	logrus.Trace("processing tar file")
-	tr := tar.NewReader(in)
-	a.Files = make([]*File, 0)
-
-	for {
-		header, err := tr.Next()
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			return nil, err
-		}
-
-		// TODO(ek): do we need to somehow check the location in the tar file?
-
-		target, err := sanitizeArchivePath(a.TempDir, header.Name)
-		if err != nil {
-			return nil, err
-		}
-
-		logrus.Tracef("tar > target %s", target)
-
-		switch header.Typeflag {
-		// if it's a dir, and it doesn't exist create it
-		case tar.TypeDir:
-			if _, err := os.Stat(target); err != nil {
-				if err := os.MkdirAll(target, 0755); err != nil {
-					return nil, err
-				}
-				logrus.Tracef("tar > create directory %s", target)
-			}
-		// if it's a file create it
-		case tar.TypeReg:
-			baseDir := filepath.Dir(target)
-			if _, err := os.Stat(baseDir); err != nil {
-				if err := os.MkdirAll(baseDir, 0755); err != nil {
-					return nil, err
-				}
-				logrus.Tracef("tar > create directory %s", baseDir)
-			}
-
-			convertedMode, err := int64ToUint32(header.Mode)
-			if err != nil {
-				return nil, err
-			}
-
-			f, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(convertedMode))
-			if err != nil {
-				return nil, err
-			}
-
-			// copy over contents
-			if _, err := io.Copy(f, tr); err != nil { //nolint: gosec
-				return nil, err
-			}
-
-			// manually close here after each file operation; deferring would cause each file close
-			// to wait until all operations have completed.
-			f.Close()
-
-			a.Files = append(a.Files, &File{Name: header.Name})
-			logrus.Tracef("tar > create file %s", target)
-		}
-	}
-
-	if len(a.Files) == 0 {
-		return nil, fmt.Errorf("no files in tar archive")
-	}
-
-	return nil, nil
-}
-
-func (a *Asset) processGz(in io.Reader) (io.Reader, error) {
-	gr, err := gzip.NewReader(in)
-	if err != nil {
-		return nil, err
-	}
-
-	return gr, nil
-}
-
-func (a *Asset) processXz(in io.Reader) (io.Reader, error) {
-	xr, err := xz.NewReader(in, 0)
-	if err != nil {
-		return nil, err
-	}
-
-	return xr, nil
-}
-
-func (a *Asset) processBz2(in io.Reader) (io.Reader, error) {
-	br := bzip2.NewReader(in)
-	return br, nil
-}
-
 func (a *Asset) GetGPGKeyID() (uint64, error) {
 	if a.Type != Signature {
 		return 0, fmt.Errorf("asset is not a signature: %s", a.GetName())
@@ -739,22 +576,4 @@ func (a *Asset) GetGPGKeyID() (uint64, error) {
 	}
 
 	return ids[0], nil
-}
-
-func int64ToUint32(value int64) (uint32, error) {
-	if value < 0 || value > math.MaxUint32 {
-		return 0, errors.New("value out of range for uint32")
-	}
-	return uint32(value), nil
-}
-
-// sanitizeArchivePath ensures that the path is not tainted
-// thanks https://github.com/securego/gosec/issues/324#issuecomment-935927967
-func sanitizeArchivePath(d, t string) (v string, err error) {
-	v = filepath.Join(d, t)
-	if strings.HasPrefix(v, filepath.Clean(d)) {
-		return v, nil
-	}
-
-	return "", fmt.Errorf("%s: %s", "content filepath is tainted", t)
 }
