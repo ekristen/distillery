@@ -5,12 +5,12 @@ go 1.22.4
 require (
 	github.com/ProtonMail/gopenpgp/v2 v2.8.1
 	github.com/apex/log v1.9.0
-	github.com/dsnet/compress v0.0.1
+	github.com/dsnet/compress v0.0.2-0.20230904184137-39efe44ab707
 	github.com/gabriel-vasile/mimetype v1.4.8
 	github.com/google/go-github/v66 v66.0.0
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
 	github.com/h2non/filetype v1.1.3
-	github.com/krolaw/zipstream v0.0.0-20180621105154-0a2661891f94
+	github.com/mholt/archives v0.0.0-20241226194006-fc8400ac3529
 	github.com/pelletier/go-toml/v2 v2.2.3
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
@@ -42,7 +42,6 @@ require (
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mholt/archives v0.0.0-20241226194006-fc8400ac3529 // indirect
 	github.com/nwaples/rardecode/v2 v2.0.0-beta.4.0.20241112120701-034e449c6e78 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
