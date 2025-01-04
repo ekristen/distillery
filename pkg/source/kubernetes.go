@@ -24,7 +24,7 @@ type Kubernetes struct {
 }
 
 func (s *Kubernetes) GetSource() string {
-	return KubernetesSource
+	return "github"
 }
 func (s *Kubernetes) GetOwner() string {
 	return KubernetesSource
