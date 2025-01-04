@@ -71,7 +71,7 @@ func (s *GitHub) PreRun(ctx context.Context) error {
 // Run - run the source
 func (s *GitHub) Run(ctx context.Context) error {
 	// this is from the Provider struct
-	if err := s.Discover([]string{s.Repo}, s.Version); err != nil {
+	if err := s.Discover(strings.Split(s.Repo, "/"), s.Version); err != nil {
 		return err
 	}
 

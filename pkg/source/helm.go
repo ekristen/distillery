@@ -100,7 +100,7 @@ func (s *Helm) PreRun(ctx context.Context) error {
 
 func (s *Helm) Run(ctx context.Context) error {
 	// this is from the Provider struct
-	if err := s.Discover([]string{s.Repo}, s.Version); err != nil {
+	if err := s.Discover(strings.Split(s.Repo, "/"), s.Version); err != nil {
 		return err
 	}
 
