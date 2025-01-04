@@ -413,7 +413,7 @@ func (p *Provider) discoverSignature(version string) error { //nolint:gocyclo
 }
 
 // TODO: refactor into smaller functions for testing
-func (p *Provider) discoverMatch() error { //nolint:gocyclo,funlen
+func (p *Provider) discoverMatch() error { //nolint:gocyclo
 	logger := logrus.WithField("discover", "match")
 
 	// Match keys to signatures.
@@ -439,13 +439,8 @@ func (p *Provider) discoverMatch() error { //nolint:gocyclo,funlen
 
 			logger.Trace("key base name: ", keyBaseName, aa.GetBaseName())
 
-			if strings.EqualFold(keyBaseName, sigBaseName) {
-				logger.Tracef("matched(1) key: %s to signature: %s", aa.GetName(), a.GetName())
-				a.SetMatchedAsset(aa)
-				aa.SetMatchedAsset(a)
-				break
-			} else if strings.EqualFold(a.GetBaseName(), aa.GetBaseName()) {
-				logger.Tracef("matched(2) key: %s to signature: %s", aa.GetName(), a.GetName())
+			if strings.EqualFold(keyBaseName, sigBaseName) || strings.EqualFold(a.GetBaseName(), aa.GetBaseName()) {
+				logger.Tracef("matched key: %s to signature: %s", aa.GetName(), a.GetName())
 				a.SetMatchedAsset(aa)
 				aa.SetMatchedAsset(a)
 				break
