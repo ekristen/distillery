@@ -24,7 +24,7 @@ type Helm struct {
 }
 
 func (s *Helm) GetSource() string {
-	return HelmSource
+	return "github"
 }
 func (s *Helm) GetOwner() string {
 	return HelmSource
