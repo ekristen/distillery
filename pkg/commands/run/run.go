@@ -77,6 +77,11 @@ func Execute(c *cli.Context) error {
 				return err
 			}
 		}
+
+		select {
+		case <-c.Context.Done():
+			return nil
+		}
 	}
 
 	return nil
