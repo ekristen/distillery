@@ -230,19 +230,19 @@ func TestScore(t *testing.T) {
 			expected: []Sorted{
 				{
 					Key:   "nerdctl-1.7.7-linux-amd64.tar.gz",
-					Value: 77,
+					Value: 88,
 				},
 				{
 					Key:   "nerdctl-full-1.7.7-linux-amd64.tar.gz",
-					Value: 72,
+					Value: 83,
 				},
 				{
 					Key:   "nerdctl-1.7.7-linux-arm64.tar.gz",
-					Value: 47,
+					Value: 51,
 				},
 				{
 					Key:   "nerdctl-full-1.7.7-linux-arm64.tar.gz",
-					Value: 42,
+					Value: 46,
 				},
 			},
 		},
