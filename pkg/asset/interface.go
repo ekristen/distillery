@@ -21,4 +21,5 @@ type IAsset interface {
 	GetMatchedAsset() IAsset
 	SetMatchedAsset(IAsset)
 	GetGPGKeyID() (uint64, error)
+	GetBaseName() string
 }
