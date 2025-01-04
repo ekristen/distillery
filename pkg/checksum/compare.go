@@ -2,6 +2,10 @@ package checksum
 
 import (
 	"bufio"
+	"crypto/md5"
+	"crypto/sha1"
+	"crypto/sha256"
+	"crypto/sha512"
 	"fmt"
 	"hash"
 	"io"
@@ -27,9 +31,48 @@ func ComputeFileHash(filePath string, hashFunc func() hash.Hash) (string, error)
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
+// DetermineHashFunc determines the hash function to use based on the checksum file and the lengths of the hashes.
+func DetermineHashFunc(checksumFilePath string) (func() hash.Hash, error) {
+	log := logrus.WithField("handler", "determine-hash-func")
+
+	// Open the checksum file
+	checksumFile, err := os.Open(checksumFilePath)
+	if err != nil {
+		return nil, err
+	}
+	defer checksumFile.Close()
+
+	// Read the first line of the checksum file
+	scanner := bufio.NewScanner(checksumFile)
+	scanner.Scan()
+	line := scanner.Text()
+
+	// Determine the hash function based on the length of the hash
+	hashLength := len(strings.Fields(line)[0])
+	log.Trace("hashLength: ", hashLength)
+
+	switch hashLength {
+	case 32:
+		return func() hash.Hash { return md5.New() }, nil
+	case 40:
+		return func() hash.Hash { return sha1.New() }, nil
+	case 64:
+		return func() hash.Hash { return sha256.New() }, nil
+	case 128:
+		return func() hash.Hash { return sha512.New() }, nil
+	default:
+		return nil, fmt.Errorf("unsupported hash length: %d", hashLength)
+	}
+}
+
 // CompareHashWithChecksumFile compares the computed hash of a file with the hashes in a checksum file.
-func CompareHashWithChecksumFile(srcFilename, srcFilePath, checksumFilePath string, hashFunc func() hash.Hash) (bool, error) {
+func CompareHashWithChecksumFile(srcFilename, srcFilePath, checksumFilePath string) (bool, error) {
 	log := logrus.WithField("handler", "compare-hash-with-checksum-file")
+
+	hashFunc, err := DetermineHashFunc(checksumFilePath)
+	if err != nil {
+		return false, err
+	}
 
 	// Compute the hash of the file
 	computedHash, err := ComputeFileHash(srcFilePath, hashFunc)
