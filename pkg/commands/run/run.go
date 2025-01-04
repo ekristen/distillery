@@ -78,7 +78,7 @@ func Execute(c *cli.Context) error {
 			}
 		}
 
-		select {
+		select { //nolint:gosimple
 		case <-c.Context.Done():
 			return nil
 		}
