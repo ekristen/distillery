@@ -2,8 +2,8 @@ package checksum
 
 import (
 	"bufio"
-	"crypto/md5"
-	"crypto/sha1"
+	"crypto/md5"  //nolint:gosec
+	"crypto/sha1" //nolint:gosec
 	"crypto/sha256"
 	"crypto/sha512"
 	"fmt"
@@ -53,13 +53,13 @@ func DetermineHashFunc(checksumFilePath string) (func() hash.Hash, error) {
 
 	switch hashLength {
 	case 32:
-		return func() hash.Hash { return md5.New() }, nil
+		return md5.New, nil
 	case 40:
-		return func() hash.Hash { return sha1.New() }, nil
+		return sha1.New, nil
 	case 64:
-		return func() hash.Hash { return sha256.New() }, nil
+		return sha256.New, nil
 	case 128:
-		return func() hash.Hash { return sha512.New() }, nil
+		return sha512.New, nil
 	default:
 		return nil, fmt.Errorf("unsupported hash length: %d", hashLength)
 	}
