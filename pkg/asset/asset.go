@@ -2,12 +2,12 @@ package asset
 
 import (
 	"archive/tar"
-	"bytes"
 	"compress/bzip2"
 	"compress/gzip"
 	"context"
 	"errors"
 	"fmt"
+	"github.com/mholt/archives"
 	"io"
 	"math"
 	"os"
@@ -21,7 +21,6 @@ import (
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/h2non/filetype"
 	"github.com/h2non/filetype/matchers"
-	"github.com/krolaw/zipstream"
 	"github.com/sirupsen/logrus"
 	"github.com/xi2/xz"
 
@@ -142,6 +141,27 @@ func (a *Asset) Path() string { return "not-implemented" }
 
 func (a *Asset) GetName() string {
 	return a.Name
+}
+
+func (a *Asset) GetBaseName() string {
+	filename := a.GetName()
+	for {
+		newFilename := filename
+		newExt := filepath.Ext(newFilename)
+		if len(newExt) > 5 || strings.Contains("_", newExt) {
+			break
+		}
+
+		newFilename = strings.TrimSuffix(newFilename, newExt)
+
+		if newFilename == filename {
+			break
+		}
+
+		filename = newFilename
+	}
+
+	return filename
 }
 
 func (a *Asset) GetDisplayName() string {
@@ -457,38 +477,28 @@ func (a *Asset) Extract() error {
 	return a.doExtract(fileHandler)
 }
 
-func (a *Asset) doExtract(in io.Reader) error {
-	var buf bytes.Buffer
-	tee := io.TeeReader(in, &buf)
-
-	t, err := filetype.MatchReader(tee)
-	if err != nil {
+func (a *Asset) doExtract(stream io.Reader) error {
+	logrus.Debug("identifying archive format")
+	format, stream, err := archives.Identify(context.TODO(), a.Extension, stream)
+	if err != nil && !errors.Is(err, archives.NoMatch) {
 		return err
 	}
 
-	outputFile := io.MultiReader(&buf, in)
-
-	logrus.Debugf("extracting file type: %s", t)
-
-	var processor processorFunc
-
-	switch t {
-	case matchers.TypeTar:
-		processor = a.processTar
-	case matchers.TypeZip:
-		processor = a.processZip
-	case matchers.TypeBz2:
-		processor = a.processBz2
-	case matchers.TypeGz:
-		processor = a.processGz
-	case matchers.TypeXz:
-		processor = a.processXz
-	default:
-		processor = a.processDirect
+	if errors.Is(err, archives.NoMatch) && a.GetType() == Archive {
+		logrus.Warn("unable to identify archive format")
+		return errors.New("unable to identify or invalid archive format")
 	}
 
-	if processor != nil {
-		newReader, err := processor(outputFile)
+	logrus.Debug("identified archive format: ", format)
+
+	if ex, ok := format.(archives.Extractor); ok {
+		logrus.Debug("extracting archive")
+		if err := ex.Extract(context.TODO(), stream, a.processArchive); err != nil {
+			return err
+		}
+	} else {
+		logrus.Debug("processing direct file")
+		newReader, err := a.processDirect(stream)
 		if err != nil {
 			return err
 		}
@@ -520,53 +530,88 @@ func (a *Asset) processDirect(in io.Reader) (io.Reader, error) {
 	return nil, nil
 }
 
-func (a *Asset) processZip(in io.Reader) (io.Reader, error) {
-	zr := zipstream.NewReader(in)
-	a.Files = make([]*File, 0)
+func (a *Asset) processArchive(ctx context.Context, f archives.FileInfo) error {
+	// do something with the file here; or, if you only want a specific file or directory,
+	// just return until you come across the desired f.NameInArchive value(s)
+	target := filepath.Join(a.TempDir, f.Name())
+	logrus.Tracef("zip > target %s", target)
 
-	for {
-		header, err := zr.Next()
-
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			return nil, err
+	if f.Mode().IsDir() {
+		if _, err := os.Stat(target); err != nil {
+			if err := os.MkdirAll(target, 0755); err != nil {
+				return err
+			}
+			logrus.Tracef("tar > create directory %s", target)
 		}
 
-		target := filepath.Join(a.TempDir, header.Name)
+		return nil
+	}
+
+	tc, err := f.Open()
+	if err != nil {
+		return err
+	}
+
+	nf, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, f.Mode())
+	if err != nil {
+		return err
+	}
+
+	// copy over contents
+	if _, err := io.Copy(nf, tc); err != nil {
+		return err
+	}
+
+	a.Files = append(a.Files, &File{Name: f.Name()})
+
+	logrus.Tracef("zip > create file %s", target)
+
+	return nil
+}
+
+func (a *Asset) processZip(in io.Reader) (io.Reader, error) {
+	var format archives.Zip
+
+	err := format.Extract(context.TODO(), in, func(ctx context.Context, f archives.FileInfo) error {
+		// do something with the file here; or, if you only want a specific file or directory,
+		// just return until you come across the desired f.NameInArchive value(s)
+		target := filepath.Join(a.TempDir, f.Name())
 		logrus.Tracef("zip > target %s", target)
 
-		if header.Mode().IsDir() {
+		if f.Mode().IsDir() {
 			if _, err := os.Stat(target); err != nil {
 				if err := os.MkdirAll(target, 0755); err != nil {
-					return nil, err
+					return err
 				}
 				logrus.Tracef("tar > create directory %s", target)
 			}
 
-			continue
+			return nil
 		}
 
-		// TODO(ek): do we need to somehow check the location in the zip file?
-		// TODO(ek): should we cache the hashes of the files back to the main hash of the file?
-
-		f, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, header.Mode())
+		tc, err := f.Open()
 		if err != nil {
-			return nil, err
+			return err
+		}
+
+		nf, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, f.Mode())
+		if err != nil {
+			return err
 		}
 
 		// copy over contents
-		if _, err := io.Copy(f, zr); err != nil {
-			return nil, err
+		if _, err := io.Copy(nf, tc); err != nil {
+			return err
 		}
 
-		// manually close here after each file operation; deferring would cause each file close
-		// to wait until all operations have completed.
-		f.Close()
-
-		a.Files = append(a.Files, &File{Name: header.Name})
+		a.Files = append(a.Files, &File{Name: f.Name()})
 
 		logrus.Tracef("zip > create file %s", target)
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	if len(a.Files) == 0 {

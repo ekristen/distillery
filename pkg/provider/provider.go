@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -239,7 +238,7 @@ func (p *Provider) discoverChecksum() error {
 			Names:      []string{p.Binary.GetName()},
 			Extensions: ext,
 			WeightedTerms: map[string]int{
-				"checksums": 80,
+				"checksums": 100,
 				"SHA512":    50,
 				"sha512sum": 50,
 				"SHA256":    40,
@@ -427,16 +426,26 @@ func (p *Provider) discoverMatch() error { //nolint:gocyclo
 			continue
 		}
 
+		sigBaseName := strings.TrimSuffix(a.GetName(), filepath.Ext(a.GetName()))
+
+		logger.Trace("signature base name: ", sigBaseName)
+
 		for _, aa := range p.Assets {
 			if aa.GetType() != asset.Key {
 				continue
 			}
 
-			childS := strings.TrimSuffix(aa.GetName(), filepath.Ext(aa.GetName()))
-			parentS := strings.TrimSuffix(a.GetName(), filepath.Ext(a.GetName()))
+			keyBaseName := strings.TrimSuffix(aa.GetName(), filepath.Ext(aa.GetName()))
 
-			if strings.EqualFold(childS, parentS) {
-				logger.Tracef("matched key: %s to signature: %s", aa.GetName(), a.GetName())
+			logger.Trace("key base name: ", keyBaseName, aa.GetBaseName())
+
+			if strings.EqualFold(keyBaseName, sigBaseName) {
+				logger.Tracef("matched(1) key: %s to signature: %s", aa.GetName(), a.GetName())
+				a.SetMatchedAsset(aa)
+				aa.SetMatchedAsset(a)
+				break
+			} else if strings.EqualFold(a.GetBaseName(), aa.GetBaseName()) {
+				logger.Tracef("matched(2) key: %s to signature: %s", aa.GetName(), a.GetName())
 				a.SetMatchedAsset(aa)
 				aa.SetMatchedAsset(a)
 				break
@@ -698,6 +707,7 @@ func (p *Provider) verifyCosignSignature() error { //nolint:gocyclo
 			return err
 		}
 	} else if bundle != nil {
+		logrus.Trace("key file name via bundle")
 		publicKeyContentEncoded = []byte(bundle.Certificate)
 		sigData = []byte(bundle.Signature)
 	}
@@ -755,9 +765,8 @@ func (p *Provider) verifyChecksum() error {
 	logrus.Debug("verifying checksum")
 	logrus.Tracef("binary: %s", p.Binary.GetName())
 
-	// TODO: support other checksum functions
 	match, err := checksum.CompareHashWithChecksumFile(p.Binary.GetName(),
-		p.Binary.GetFilePath(), p.Checksum.GetFilePath(), sha256.New)
+		p.Binary.GetFilePath(), p.Checksum.GetFilePath())
 	if err != nil {
 		return err
 	}

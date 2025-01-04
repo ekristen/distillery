@@ -59,7 +59,7 @@ func TestCompareHashWithChecksumFile(t *testing.T) {
 	checksumFile.Close()
 
 	// Compare the hash with the checksum file
-	match, err := CompareHashWithChecksumFile(tmpFile.Name(), tmpFile.Name(), checksumFile.Name(), sha256.New)
+	match, err := CompareHashWithChecksumFile(tmpFile.Name(), tmpFile.Name(), checksumFile.Name())
 	assert.NoError(t, err)
 	assert.True(t, match)
 
@@ -73,7 +73,7 @@ func TestCompareHashWithChecksumFile(t *testing.T) {
 	assert.NoError(t, err)
 	checksumFile.Close()
 
-	match, err = CompareHashWithChecksumFile(tmpFile.Name(), tmpFile.Name(), checksumFile.Name(), sha512.New)
+	match, err = CompareHashWithChecksumFile(tmpFile.Name(), tmpFile.Name(), checksumFile.Name())
 	assert.NoError(t, err)
 	assert.True(t, match)
 }

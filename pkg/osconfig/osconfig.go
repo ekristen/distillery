@@ -90,7 +90,7 @@ func New(os, arch string) *OS {
 		newOS.Aliases = []string{}
 		newOS.Extensions = []string{".AppImage"}
 	case Darwin:
-		newOS.Aliases = []string{"osx", "macos", "apple", "ventura", "sonoma", "sequoia"}
+		newOS.Aliases = []string{"osx", "macos", "mac", "apple", "ventura", "sonoma", "sequoia"}
 		newOS.Architectures = append(newOS.Architectures, "universal")
 	}
 

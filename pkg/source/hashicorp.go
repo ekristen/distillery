@@ -128,7 +128,7 @@ func (s *Hashicorp) PreRun(ctx context.Context) error {
 }
 
 func (s *Hashicorp) Run(ctx context.Context) error {
-	if err := s.Discover([]string{s.Repo}, s.Version); err != nil {
+	if err := s.Discover(strings.Split(s.Repo, "/"), s.Version); err != nil {
 		return err
 	}
 

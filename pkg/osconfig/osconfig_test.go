@@ -27,7 +27,7 @@ func TestOS_GetOS(t *testing.T) {
 		{
 			name:     "Darwin",
 			os:       osconfig.New(osconfig.Darwin, osconfig.AMD64),
-			expected: []string{"darwin", "osx", "macos", "apple", "ventura", "sonoma", "sequoia"},
+			expected: []string{"darwin", "osx", "mac", "macos", "apple", "ventura", "sonoma", "sequoia"},
 		},
 	}
 
