@@ -117,7 +117,7 @@ func removeExtension(filename string) string {
 	for {
 		newFilename := filename
 		newExt := filepath.Ext(newFilename)
-		if len(newExt) > 5 || strings.Contains("_", newExt) {
+		if len(newExt) > 5 || strings.Contains(newExt, "_") {
 			break
 		}
 
