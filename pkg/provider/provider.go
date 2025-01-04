@@ -413,7 +413,7 @@ func (p *Provider) discoverSignature(version string) error { //nolint:gocyclo
 }
 
 // TODO: refactor into smaller functions for testing
-func (p *Provider) discoverMatch() error { //nolint:gocyclo
+func (p *Provider) discoverMatch() error { //nolint:gocyclo,funlen
 	logger := logrus.WithField("discover", "match")
 
 	// Match keys to signatures.
