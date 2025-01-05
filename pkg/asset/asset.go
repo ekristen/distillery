@@ -1,15 +1,10 @@
 package asset
 
 import (
-	"archive/tar"
-	"bytes"
-	"compress/bzip2"
-	"compress/gzip"
 	"context"
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -21,9 +16,8 @@ import (
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/h2non/filetype"
 	"github.com/h2non/filetype/matchers"
-	"github.com/krolaw/zipstream"
+	"github.com/mholt/archives"
 	"github.com/sirupsen/logrus"
-	"github.com/xi2/xz"
 
 	"github.com/ekristen/distillery/pkg/common"
 	"github.com/ekristen/distillery/pkg/osconfig"
@@ -84,9 +78,6 @@ const (
 	ChecksumTypeMulti = "multi"
 )
 
-// processorFunc is a function that processes a reader
-type processorFunc func(io.Reader) (io.Reader, error)
-
 // New creates a new asset
 func New(name, displayName, osName, osArch, version string) *Asset {
 	a := &Asset{
@@ -142,6 +133,27 @@ func (a *Asset) Path() string { return "not-implemented" }
 
 func (a *Asset) GetName() string {
 	return a.Name
+}
+
+func (a *Asset) GetBaseName() string {
+	filename := a.GetName()
+	for {
+		newFilename := filename
+		newExt := filepath.Ext(newFilename)
+		if len(newExt) > 5 || strings.Contains(newExt, "_") {
+			break
+		}
+
+		newFilename = strings.TrimSuffix(newFilename, newExt)
+
+		if newFilename == filename {
+			break
+		}
+
+		filename = newFilename
+	}
+
+	return filename
 }
 
 func (a *Asset) GetDisplayName() string {
@@ -457,218 +469,88 @@ func (a *Asset) Extract() error {
 	return a.doExtract(fileHandler)
 }
 
-func (a *Asset) doExtract(in io.Reader) error {
-	var buf bytes.Buffer
-	tee := io.TeeReader(in, &buf)
-
-	t, err := filetype.MatchReader(tee)
-	if err != nil {
+func (a *Asset) doExtract(stream io.Reader) error {
+	logrus.Debug("identifying archive format")
+	format, stream, err := archives.Identify(context.TODO(), a.Extension, stream)
+	if err != nil && !errors.Is(err, archives.NoMatch) {
 		return err
 	}
 
-	outputFile := io.MultiReader(&buf, in)
-
-	logrus.Debugf("extracting file type: %s", t)
-
-	var processor processorFunc
-
-	switch t {
-	case matchers.TypeTar:
-		processor = a.processTar
-	case matchers.TypeZip:
-		processor = a.processZip
-	case matchers.TypeBz2:
-		processor = a.processBz2
-	case matchers.TypeGz:
-		processor = a.processGz
-	case matchers.TypeXz:
-		processor = a.processXz
-	default:
-		processor = a.processDirect
+	if errors.Is(err, archives.NoMatch) && a.GetType() == Archive {
+		logrus.Warn("unable to identify archive format")
+		return errors.New("unable to identify or invalid archive format")
 	}
 
-	if processor != nil {
-		newReader, err := processor(outputFile)
-		if err != nil {
+	logrus.Debug("identified archive format: ", format)
+
+	if ex, ok := format.(archives.Extractor); ok {
+		logrus.Debug("extracting archive")
+		if err := ex.Extract(context.TODO(), stream, a.processArchive); err != nil {
 			return err
 		}
-
-		if newReader == nil {
-			return nil
+	} else {
+		logrus.Debug("processing direct file")
+		if err := a.processDirect(stream); err != nil {
+			return err
 		}
-
-		// In case of e.g. a .tar.gz, process the uncompressed archive by calling recursively
-		return a.doExtract(newReader)
 	}
 
 	return nil
 }
 
-func (a *Asset) processDirect(in io.Reader) (io.Reader, error) {
+func (a *Asset) processDirect(in io.Reader) error {
 	logrus.Tracef("processing direct file")
 	outFile, err := os.Create(filepath.Join(a.TempDir, filepath.Base(a.DownloadPath)))
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if _, err := io.Copy(outFile, in); err != nil {
-		return nil, err
+		return err
 	}
 
 	a.Files = append(a.Files, &File{Name: filepath.Base(a.DownloadPath), Alias: a.GetName()})
 
-	return nil, nil
+	return nil
 }
 
-func (a *Asset) processZip(in io.Reader) (io.Reader, error) {
-	zr := zipstream.NewReader(in)
-	a.Files = make([]*File, 0)
+func (a *Asset) processArchive(ctx context.Context, f archives.FileInfo) error {
+	// do something with the file here; or, if you only want a specific file or directory,
+	// just return until you come across the desired f.NameInArchive value(s)
+	target := filepath.Join(a.TempDir, f.Name())
+	logrus.Tracef("zip > target %s", target)
 
-	for {
-		header, err := zr.Next()
-
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			return nil, err
-		}
-
-		target := filepath.Join(a.TempDir, header.Name)
-		logrus.Tracef("zip > target %s", target)
-
-		if header.Mode().IsDir() {
-			if _, err := os.Stat(target); err != nil {
-				if err := os.MkdirAll(target, 0755); err != nil {
-					return nil, err
-				}
-				logrus.Tracef("tar > create directory %s", target)
+	if f.Mode().IsDir() {
+		if _, err := os.Stat(target); err != nil {
+			if err := os.MkdirAll(target, 0755); err != nil {
+				return err
 			}
-
-			continue
+			logrus.Tracef("tar > create directory %s", target)
 		}
 
-		// TODO(ek): do we need to somehow check the location in the zip file?
-		// TODO(ek): should we cache the hashes of the files back to the main hash of the file?
-
-		f, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, header.Mode())
-		if err != nil {
-			return nil, err
-		}
-
-		// copy over contents
-		if _, err := io.Copy(f, zr); err != nil {
-			return nil, err
-		}
-
-		// manually close here after each file operation; deferring would cause each file close
-		// to wait until all operations have completed.
-		f.Close()
-
-		a.Files = append(a.Files, &File{Name: header.Name})
-
-		logrus.Tracef("zip > create file %s", target)
+		return nil
 	}
 
-	if len(a.Files) == 0 {
-		return nil, fmt.Errorf("no files found in zip archive")
-	}
-
-	return nil, nil
-}
-
-func (a *Asset) processTar(in io.Reader) (io.Reader, error) {
-	logrus.Trace("processing tar file")
-	tr := tar.NewReader(in)
-	a.Files = make([]*File, 0)
-
-	for {
-		header, err := tr.Next()
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			return nil, err
-		}
-
-		// TODO(ek): do we need to somehow check the location in the tar file?
-
-		target, err := sanitizeArchivePath(a.TempDir, header.Name)
-		if err != nil {
-			return nil, err
-		}
-
-		logrus.Tracef("tar > target %s", target)
-
-		switch header.Typeflag {
-		// if it's a dir, and it doesn't exist create it
-		case tar.TypeDir:
-			if _, err := os.Stat(target); err != nil {
-				if err := os.MkdirAll(target, 0755); err != nil {
-					return nil, err
-				}
-				logrus.Tracef("tar > create directory %s", target)
-			}
-		// if it's a file create it
-		case tar.TypeReg:
-			baseDir := filepath.Dir(target)
-			if _, err := os.Stat(baseDir); err != nil {
-				if err := os.MkdirAll(baseDir, 0755); err != nil {
-					return nil, err
-				}
-				logrus.Tracef("tar > create directory %s", baseDir)
-			}
-
-			convertedMode, err := int64ToUint32(header.Mode)
-			if err != nil {
-				return nil, err
-			}
-
-			f, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(convertedMode))
-			if err != nil {
-				return nil, err
-			}
-
-			// copy over contents
-			if _, err := io.Copy(f, tr); err != nil { //nolint: gosec
-				return nil, err
-			}
-
-			// manually close here after each file operation; deferring would cause each file close
-			// to wait until all operations have completed.
-			f.Close()
-
-			a.Files = append(a.Files, &File{Name: header.Name})
-			logrus.Tracef("tar > create file %s", target)
-		}
-	}
-
-	if len(a.Files) == 0 {
-		return nil, fmt.Errorf("no files in tar archive")
-	}
-
-	return nil, nil
-}
-
-func (a *Asset) processGz(in io.Reader) (io.Reader, error) {
-	gr, err := gzip.NewReader(in)
+	tc, err := f.Open()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return gr, nil
-}
-
-func (a *Asset) processXz(in io.Reader) (io.Reader, error) {
-	xr, err := xz.NewReader(in, 0)
+	nf, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, f.Mode())
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return xr, nil
-}
+	// copy over contents
+	if _, err := io.Copy(nf, tc); err != nil {
+		return err
+	}
 
-func (a *Asset) processBz2(in io.Reader) (io.Reader, error) {
-	br := bzip2.NewReader(in)
-	return br, nil
+	a.Files = append(a.Files, &File{Name: f.Name()})
+
+	logrus.Tracef("zip > create file %s", target)
+
+	return nil
 }
 
 func (a *Asset) GetGPGKeyID() (uint64, error) {
@@ -694,22 +576,4 @@ func (a *Asset) GetGPGKeyID() (uint64, error) {
 	}
 
 	return ids[0], nil
-}
-
-func int64ToUint32(value int64) (uint32, error) {
-	if value < 0 || value > math.MaxUint32 {
-		return 0, errors.New("value out of range for uint32")
-	}
-	return uint32(value), nil
-}
-
-// sanitizeArchivePath ensures that the path is not tainted
-// thanks https://github.com/securego/gosec/issues/324#issuecomment-935927967
-func sanitizeArchivePath(d, t string) (v string, err error) {
-	v = filepath.Join(d, t)
-	if strings.HasPrefix(v, filepath.Clean(d)) {
-		return v, nil
-	}
-
-	return "", fmt.Errorf("%s: %s", "content filepath is tainted", t)
 }

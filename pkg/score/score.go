@@ -117,6 +117,9 @@ func removeExtension(filename string) string {
 	for {
 		newFilename := filename
 		newExt := filepath.Ext(newFilename)
+		if len(newExt) > 5 || strings.Contains(newExt, "_") {
+			break
+		}
 
 		newFilename = strings.TrimSuffix(newFilename, newExt)
 
@@ -131,12 +134,23 @@ func removeExtension(filename string) string {
 }
 
 func calculateAccuracyScore(filename string, knownTerms []string) int {
+	logrus.Trace("calculating accuracy score for filename: ", filename)
 	filename = removeExtension(filename) // Remove the file extension
+	logrus.Trace("filename after removing extension: ", filename)
 
 	// Split the filename by dashes and dots to get individual terms
 	terms := strings.FieldsFunc(filename, func(r rune) bool {
 		return r == '-' || r == '_'
 	})
+
+	// discovered terms
+	for i, term := range terms {
+		logrus.Tracef("term %d: %s", i, term)
+	}
+
+	for i, term := range knownTerms {
+		logrus.Tracef("known term %d: %s", i, term)
+	}
 
 	// Initialize the score
 	score := 0

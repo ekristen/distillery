@@ -71,7 +71,7 @@ func (s *GitHub) PreRun(ctx context.Context) error {
 // Run - run the source
 func (s *GitHub) Run(ctx context.Context) error {
 	// this is from the Provider struct
-	if err := s.Discover([]string{s.Repo}, s.Version); err != nil {
+	if err := s.Discover(strings.Split(s.Repo, "/"), s.Version); err != nil {
 		return err
 	}
 
@@ -114,7 +114,9 @@ func (s *GitHub) FindRelease(ctx context.Context) error {
 		WithField("repo", s.GetRepo()).
 		Tracef("finding release for %s", s.Version)
 
-	if s.Version == provider.VersionLatest {
+	includePreReleases := s.Options.Settings["include-pre-releases"].(bool)
+
+	if s.Version == provider.VersionLatest && !includePreReleases {
 		release, _, err = s.client.Repositories.GetLatestRelease(ctx, s.GetOwner(), s.GetRepo())
 		if err != nil && !strings.Contains(err.Error(), "404 Not Found") {
 			return err
@@ -144,7 +146,6 @@ func (s *GitHub) FindRelease(ctx context.Context) error {
 				WithField("repo", s.GetRepo()).
 				Tracef("found release: %s", r.GetTagName())
 
-			includePreReleases := s.Options.Settings["include-pre-releases"].(bool)
 			if includePreReleases && r.GetPrerelease() {
 				s.Version = strings.TrimPrefix(r.GetTagName(), "v")
 				release = r
