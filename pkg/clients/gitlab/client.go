@@ -35,6 +35,14 @@ func (c *Client) SetBaseURL(baseURL string) {
 	c.baseURL = baseURL
 }
 
+func (c *Client) GetClient() *http.Client {
+	return c.client
+}
+
+func (c *Client) GetToken() string {
+	return c.token
+}
+
 func (c *Client) ListReleases(ctx context.Context, slug string) ([]*Release, error) {
 	releaseURL := fmt.Sprintf("%s/projects/%s/releases", c.baseURL, url.QueryEscape(slug))
 	logrus.Tracef("GET %s", releaseURL)

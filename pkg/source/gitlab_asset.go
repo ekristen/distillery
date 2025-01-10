@@ -65,6 +65,10 @@ func (a *GitLabAsset) Download(ctx context.Context) error { //nolint:dupl,nolint
 	req = req.WithContext(ctx)
 	req.Header.Add("User-Agent", fmt.Sprintf("%s/%s", common.NAME, common.AppVersion))
 
+	if a.GitLab.Client.GetToken() != "" {
+		req.Header.Set("PRIVATE-TOKEN", a.GitLab.Client.GetToken())
+	}
+
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
