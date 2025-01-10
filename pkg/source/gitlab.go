@@ -93,7 +93,7 @@ func (s *GitLab) sourceRun(ctx context.Context) error {
 
 	for _, a := range s.Release.Assets.Links {
 		s.Assets = append(s.Assets, &GitLabAsset{
-			Asset:  asset.New(filepath.Base(a.URL), "", s.GetOS(), s.GetArch(), s.Version),
+			Asset:  asset.New(filepath.Base(a.DirectAssetURL), "", s.GetOS(), s.GetArch(), s.Version),
 			GitLab: s,
 			Link:   a,
 		})
