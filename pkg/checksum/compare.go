@@ -16,7 +16,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var UnsupportedHashLengthError = fmt.Errorf("unsupported hash length")
+var ErrUnsupportedHashLength = fmt.Errorf("unsupported hash length")
 
 func ComputeFileHash(filePath string, hashFunc func() hash.Hash) (string, error) {
 	file, err := os.Open(filePath)
@@ -63,7 +63,7 @@ func DetermineHashFunc(checksumFilePath string) (func() hash.Hash, error) {
 	case 128:
 		return sha512.New, nil
 	default:
-		return nil, UnsupportedHashLengthError
+		return nil, ErrUnsupportedHashLength
 	}
 }
 
