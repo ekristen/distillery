@@ -39,6 +39,7 @@ Aliases are useful shortcuts for repositories. See [Aliases](config/aliases.md) 
 ## Settings
 
 - `checksum-missing` (string): This is the behavior when a checksum is missing. The default is `warn`, valid values are `warn`, `error`, and `ignore`.
+- `checksum-unknown` (string): This is the behavior when a checksum method is unknown. The default is `warn`, valid values are `warn`, `error`, and `ignore`.
 - `signature-missing` (string): This is the behavior when a signature is missing. The default is `warn`, valid values are `warn`, `error`, and `ignore`.
 
 === "YAML"
@@ -46,6 +47,7 @@ Aliases are useful shortcuts for repositories. See [Aliases](config/aliases.md) 
     ```yaml
     settings:
       checksum-missing: warn
+      checksum-unknown: warn
       signature-missing: warn
     ```
 
@@ -53,6 +55,7 @@ Aliases are useful shortcuts for repositories. See [Aliases](config/aliases.md) 
 
     ```toml
     [settings]
-    checksum-missing = "warn"
+    checksum-missing = "warn
+    checksum-unknown = "warn"
     signature-missing = "warn"
     ```
