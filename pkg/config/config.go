@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -85,28 +84,6 @@ func (c *Config) GetAlias(name string) *Alias {
 	return nil
 }
 
-// processPath - replaces env variables with their value and tries to get the shortest absolute path
-func processPath(path string) string {
-	if runtime.GOOS == "windows" {
-		homePath, err := os.UserHomeDir()
-		if err == nil {
-			path = strings.Replace(path, "$HOME", homePath, 1)
-		}
-	}
-	path = os.ExpandEnv(path)
-
-	if filepath.IsAbs(path) {
-		path = filepath.Clean(path)
-	} else {
-		absPath, err := filepath.Abs(path)
-		if err == nil {
-			path = filepath.Clean(absPath)
-		}
-	}
-
-	return filepath.ToSlash(path)
-}
-
 // MkdirAll - create all the directories
 func (c *Config) MkdirAll() error {
 	paths := []string{c.BinPath, c.GetOptPath(), c.GetCachePath(), c.GetMetadataPath(), c.GetDownloadsPath()}
@@ -181,4 +158,20 @@ func New(path string) (*Config, error) {
 	cfg.Settings.Defaults()
 
 	return cfg, nil
+}
+
+// processPath - replaces env variables with their value and tries to get the shortest absolute path
+func processPath(path string) string {
+	path = os.ExpandEnv(path)
+
+	if !filepath.IsAbs(path) {
+		absPath, err := filepath.Abs(path)
+		if err == nil {
+			path = filepath.Clean(absPath)
+		}
+	}
+
+	path = filepath.Clean(path)
+
+	return filepath.ToSlash(path)
 }
