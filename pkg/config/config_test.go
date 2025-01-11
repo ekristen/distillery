@@ -43,7 +43,6 @@ func TestConfigNewYAML(t *testing.T) {
 			assert.Equal(t, "3.29.3", cfg.GetAlias("aws-nuke").Version)
 		})
 	}
-
 }
 
 func TestProcessPath(t *testing.T) {
