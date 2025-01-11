@@ -17,6 +17,7 @@ import (
 
 	"github.com/ekristen/distillery/pkg/asset"
 	"github.com/ekristen/distillery/pkg/checksum"
+	"github.com/ekristen/distillery/pkg/common"
 	"github.com/ekristen/distillery/pkg/config"
 	"github.com/ekristen/distillery/pkg/cosign"
 	"github.com/ekristen/distillery/pkg/osconfig"
@@ -582,12 +583,12 @@ func (p *Provider) verifySignature() error {
 	}
 
 	if p.Signature == nil {
-		if p.Options.Config.Settings.SignatureMissing == "ignore" {
+		if p.Options.Config.Settings.SignatureMissing == common.Ignore {
 			return nil
-		} else if p.Options.Config.Settings.SignatureMissing == "warn" {
+		} else if p.Options.Config.Settings.SignatureMissing == common.Warn {
 			log.Warn("skipping signature verification (no signature)")
 			return nil
-		} else if p.Options.Config.Settings.SignatureMissing == "error" {
+		} else if p.Options.Config.Settings.SignatureMissing == common.Error {
 			return errors.New("signature verification failed (no signature)")
 		}
 	}
@@ -747,12 +748,12 @@ func (p *Provider) verifyChecksum() error {
 	}
 
 	if p.Checksum == nil {
-		if p.Options.Config.Settings.ChecksumMissing == "ignore" {
+		if p.Options.Config.Settings.ChecksumMissing == common.Ignore {
 			return nil
-		} else if p.Options.Config.Settings.ChecksumMissing == "warn" {
+		} else if p.Options.Config.Settings.ChecksumMissing == common.Warn {
 			log.Warn("skipping checksum verification (no checksum)")
 			return nil
-		} else if p.Options.Config.Settings.ChecksumMissing == "error" {
+		} else if p.Options.Config.Settings.ChecksumMissing == common.Error {
 			return errors.New("checksum verification failed (no checksum)")
 		}
 	}
@@ -763,7 +764,18 @@ func (p *Provider) verifyChecksum() error {
 	match, err := checksum.CompareHashWithChecksumFile(p.Binary.GetName(),
 		p.Binary.GetFilePath(), p.Checksum.GetFilePath())
 	if err != nil {
-		return err
+		if errors.Is(err, checksum.ErrUnsupportedHashLength) {
+			if p.Options.Config.Settings.ChecksumUnknown == common.Warn {
+				log.Warn("skipping checksum verification (unsupported hash length)")
+				return nil
+			} else if p.Options.Config.Settings.ChecksumUnknown == common.Error {
+				return err
+			} else if p.Options.Config.Settings.ChecksumUnknown == common.Ignore {
+				return nil
+			}
+		} else {
+			return err
+		}
 	}
 
 	logrus.Tracef("checksum match: %v", match)
