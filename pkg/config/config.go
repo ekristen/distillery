@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -46,27 +47,27 @@ type Config struct {
 }
 
 func (c *Config) GetPath() string {
-	return filepath.ToSlash(c.Path)
+	return processPath(c.Path)
 }
 
 // GetCachePath - get the cache path
 func (c *Config) GetCachePath() string {
-	return filepath.ToSlash(filepath.Join(c.CachePath, common.NAME))
+	return processPath(filepath.Join(c.CachePath, common.NAME))
 }
 
 // GetMetadataPath - get the metadata path
 func (c *Config) GetMetadataPath() string {
-	return filepath.ToSlash(filepath.Join(c.CachePath, common.NAME, "metadata"))
+	return processPath(filepath.Join(c.CachePath, common.NAME, "metadata"))
 }
 
 // GetDownloadsPath - get the downloads path
 func (c *Config) GetDownloadsPath() string {
-	return filepath.ToSlash(filepath.Join(c.CachePath, common.NAME, "downloads"))
+	return processPath(filepath.Join(c.CachePath, common.NAME, "downloads"))
 }
 
 // GetOptPath - get the opt path
 func (c *Config) GetOptPath() string {
-	return filepath.ToSlash(filepath.Join(c.GetPath(), "opt"))
+	return processPath(filepath.Join(c.GetPath(), "opt"))
 }
 
 // GetAlias - get an alias by name
@@ -82,6 +83,28 @@ func (c *Config) GetAlias(name string) *Alias {
 	}
 
 	return nil
+}
+
+// processPath - replaces env variables with their value and tries to get the shortest absolute path
+func processPath(path string) string {
+	if runtime.GOOS == "windows" {
+		homePath, err := os.UserHomeDir()
+		if err == nil {
+			path = strings.Replace(path, "$HOME", homePath, 1)
+		}
+	}
+	path = os.ExpandEnv(path)
+
+	if filepath.IsAbs(path) {
+		path = filepath.Clean(path)
+	} else {
+		absPath, err := filepath.Abs(path)
+		if err == nil {
+			path = filepath.Clean(absPath)
+		}
+	}
+
+	return filepath.ToSlash(path)
 }
 
 // MkdirAll - create all the directories
