@@ -763,6 +763,10 @@ func (p *Provider) verifyChecksum() error {
 	match, err := checksum.CompareHashWithChecksumFile(p.Binary.GetName(),
 		p.Binary.GetFilePath(), p.Checksum.GetFilePath())
 	if err != nil {
+		if errors.Is(err, checksum.UnsupportedHashLengthError) {
+			log.Warn("skipping checksum verification (unsupported hash length)")
+			return nil
+		}
 		return err
 	}
 
