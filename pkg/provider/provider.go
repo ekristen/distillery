@@ -764,10 +764,17 @@ func (p *Provider) verifyChecksum() error {
 		p.Binary.GetFilePath(), p.Checksum.GetFilePath())
 	if err != nil {
 		if errors.Is(err, checksum.UnsupportedHashLengthError) {
-			log.Warn("skipping checksum verification (unsupported hash length)")
-			return nil
+			if p.Options.Config.Settings.ChecksumUnknown == "warn" {
+				log.Warn("skipping checksum verification (unsupported hash length)")
+				return nil
+			} else if p.Options.Config.Settings.ChecksumUnknown == "error" {
+				return err
+			} else if p.Options.Config.Settings.ChecksumUnknown == "ignore" {
+				return nil
+			}
+		} else {
+			return err
 		}
-		return err
 	}
 
 	logrus.Tracef("checksum match: %v", match)
