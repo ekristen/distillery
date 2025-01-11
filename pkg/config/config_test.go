@@ -9,45 +9,41 @@ import (
 )
 
 func TestConfigNewYAML(t *testing.T) {
-	cfg, err := New("testdata/base.yaml")
-	assert.NoError(t, err)
-
-	assert.Equal(t, "/home/test/.distillery", cfg.Path)
-	assert.Equal(t, "/home/test/.cache", cfg.CachePath)
-
-	aliases := &Aliases{
-		"dist": &Alias{
-			Name:    "ekristen/distillery",
-			Version: "latest",
-		},
-		"aws-nuke": &Alias{
-			Name:    "ekristen/aws-nuke",
-			Version: "3.29.3",
-		},
+	cases := []struct {
+		path string
+	}{
+		{"testdata/base.yaml"},
+		{"testdata/base.toml"},
 	}
 
-	assert.EqualValues(t, aliases, cfg.Aliases)
-}
+	for _, c := range cases {
+		t.Run(c.path, func(t *testing.T) {
+			cfg, err := New(c.path)
+			assert.NoError(t, err)
 
-func TestConfigNewTOML(t *testing.T) {
-	cfg, err := New("testdata/base.toml")
-	assert.NoError(t, err)
+			assert.Equal(t, "/home/test/.distillery", cfg.GetPath())
+			assert.Equal(t, "/home/test/.cache/distillery", cfg.GetCachePath())
+			assert.Equal(t, "/home/test/.distillery/opt", cfg.GetOptPath())
+			assert.Equal(t, "/home/test/.cache/distillery/metadata", cfg.GetMetadataPath())
+			assert.Equal(t, "/home/test/.cache/distillery/downloads", cfg.GetDownloadsPath())
 
-	assert.Equal(t, "/home/test/.distillery", cfg.Path)
-	assert.Equal(t, "/home/test/.cache", cfg.CachePath)
+			aliases := &Aliases{
+				"dist": &Alias{
+					Name:    "ekristen/distillery",
+					Version: "latest",
+				},
+				"aws-nuke": &Alias{
+					Name:    "ekristen/aws-nuke",
+					Version: "3.29.3",
+				},
+			}
 
-	aliases := &Aliases{
-		"dist": &Alias{
-			Name:    "ekristen/distillery",
-			Version: "latest",
-		},
-		"aws-nuke": &Alias{
-			Name:    "ekristen/aws-nuke",
-			Version: "3.29.3",
-		},
+			assert.EqualValues(t, aliases, cfg.Aliases)
+			assert.Equal(t, "latest", cfg.GetAlias("dist").Version)
+			assert.Equal(t, "3.29.3", cfg.GetAlias("aws-nuke").Version)
+		})
 	}
 
-	assert.EqualValues(t, aliases, cfg.Aliases)
 }
 
 func TestProcessPath(t *testing.T) {
