@@ -81,8 +81,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: upload artifacts
-        if: github.event.pull_request.base.ref == 'main'
+        if: ${{ github.event.pull_request.base.ref == 'main' || github.event_name == 'workflow_dispatch' }}
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4
         with:
           name: binaries
-          path: releases/*.tar.gz
+          path: dist/*.tar.gz

@@ -20,7 +20,7 @@ const GitLabSource = "gitlab"
 type GitLab struct {
 	provider.Provider
 
-	client  *gitlab.Client
+	Client  *gitlab.Client
 	BaseURL string
 
 	Owner   string
@@ -61,17 +61,17 @@ func (s *GitLab) GetDownloadsDir() string {
 func (s *GitLab) sourceRun(ctx context.Context) error {
 	cacheFile := filepath.Join(s.Options.Config.GetMetadataPath(), fmt.Sprintf("cache-%s", s.GetID()))
 
-	s.client = gitlab.NewClient(httpcache.NewTransport(diskcache.New(cacheFile)).Client())
+	s.Client = gitlab.NewClient(httpcache.NewTransport(diskcache.New(cacheFile)).Client())
 	if s.BaseURL != "" {
-		s.client.SetBaseURL(s.BaseURL)
+		s.Client.SetBaseURL(s.BaseURL)
 	}
 	token := s.Options.Settings["gitlab-token"].(string)
 	if token != "" {
-		s.client.SetToken(token)
+		s.Client.SetToken(token)
 	}
 
 	if s.Version == provider.VersionLatest {
-		release, err := s.client.GetLatestRelease(ctx, fmt.Sprintf("%s/%s", s.Owner, s.Repo))
+		release, err := s.Client.GetLatestRelease(ctx, fmt.Sprintf("%s/%s", s.Owner, s.Repo))
 		if err != nil {
 			return err
 		}
@@ -79,7 +79,7 @@ func (s *GitLab) sourceRun(ctx context.Context) error {
 		s.Version = release.TagName
 		s.Release = release
 	} else {
-		release, err := s.client.GetRelease(ctx, fmt.Sprintf("%s/%s", s.Owner, s.Repo), s.Version)
+		release, err := s.Client.GetRelease(ctx, fmt.Sprintf("%s/%s", s.Owner, s.Repo), s.Version)
 		if err != nil {
 			return err
 		}
@@ -93,7 +93,7 @@ func (s *GitLab) sourceRun(ctx context.Context) error {
 
 	for _, a := range s.Release.Assets.Links {
 		s.Assets = append(s.Assets, &GitLabAsset{
-			Asset:  asset.New(filepath.Base(a.URL), "", s.GetOS(), s.GetArch(), s.Version),
+			Asset:  asset.New(filepath.Base(a.DirectAssetURL), "", s.GetOS(), s.GetArch(), s.Version),
 			GitLab: s,
 			Link:   a,
 		})

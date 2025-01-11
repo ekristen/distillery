@@ -97,10 +97,13 @@ func NewSource(src string, opts *provider.Options) (provider.ISource, error) { /
 				Version:  version,
 			}, nil
 		case source.GitLabSource:
+			owner := strings.Join(parts[1:len(parts)-1], "/")
+			repo := parts[len(parts)-1]
+
 			return &source.GitLab{
 				Provider: provider.Provider{Options: opts, OSConfig: detectedOS},
-				Owner:    parts[0],
-				Repo:     parts[1],
+				Owner:    owner,
+				Repo:     repo,
 				Version:  version,
 			}, nil
 		}
@@ -144,10 +147,13 @@ func NewSource(src string, opts *provider.Options) (provider.ISource, error) { /
 				Version:  version,
 			}, nil
 		} else if strings.HasPrefix(parts[0], source.GitLabSource) {
+			owner := strings.Join(parts[1:len(parts)-1], "/")
+			repo := parts[len(parts)-1]
+
 			return &source.GitLab{
 				Provider: provider.Provider{Options: opts, OSConfig: detectedOS},
-				Owner:    parts[1],
-				Repo:     parts[2],
+				Owner:    owner,
+				Repo:     repo,
 				Version:  version,
 			}, nil
 		}
@@ -155,11 +161,14 @@ func NewSource(src string, opts *provider.Options) (provider.ISource, error) { /
 		for pn, p := range opts.Config.Providers {
 			if pn == parts[0] {
 				if p.Provider == source.GitLabSource {
+					owner := strings.Join(parts[1:len(parts)-1], "/")
+					repo := parts[len(parts)-1]
+
 					s := &source.GitLab{
 						Provider: provider.Provider{Options: opts, OSConfig: detectedOS},
 						BaseURL:  p.BaseURL,
-						Owner:    parts[1],
-						Repo:     parts[2],
+						Owner:    owner,
+						Repo:     repo,
 						Version:  version,
 					}
 					return s, nil
