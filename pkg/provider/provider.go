@@ -13,7 +13,7 @@ import (
 	"github.com/apex/log"
 	"github.com/sirupsen/logrus"
 
-	"github.com/ProtonMail/gopenpgp/v2/crypto"
+	"github.com/ProtonMail/gopenpgp/v3/crypto"
 
 	"github.com/ekristen/distillery/pkg/asset"
 	"github.com/ekristen/distillery/pkg/checksum"
