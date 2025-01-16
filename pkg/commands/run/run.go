@@ -75,15 +75,17 @@ func Execute(c *cli.Context) error {
 			ctx := cli.NewContext(c.App, nil, nil)
 			a := []string{"install"}
 			a = append(a, command.Args...)
-			if err := instCmd.Run(ctx, a...); err != nil {
+			if installErr := instCmd.Run(ctx, a...); installErr != nil {
 				didError = true
-				log.WithError(err).Error("error running install command")
+				log.WithError(installErr).Error("error running install command")
 			}
 		}
 
 		select { //nolint:gosimple
 		case <-c.Context.Done():
 			return nil
+		default:
+			continue
 		}
 	}
 
