@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/apex/log"
 	"github.com/urfave/cli/v2"
 
 	"github.com/ekristen/distillery/pkg/common"
@@ -68,13 +69,15 @@ func Execute(c *cli.Context) error {
 
 	instCmd := common.GetCommand("install")
 
+	didError := false
 	for _, command := range commands {
 		if command.Action == "install" {
 			ctx := cli.NewContext(c.App, nil, nil)
 			a := []string{"install"}
 			a = append(a, command.Args...)
 			if err := instCmd.Run(ctx, a...); err != nil {
-				return err
+				didError = true
+				log.WithError(err).Error("error running install command")
 			}
 		}
 
@@ -82,6 +85,10 @@ func Execute(c *cli.Context) error {
 		case <-c.Context.Done():
 			return nil
 		}
+	}
+
+	if didError {
+		return errors.New("one or more install commands failed")
 	}
 
 	return nil
