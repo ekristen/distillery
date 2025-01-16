@@ -1,0 +1,4 @@
+path: /home/test/.distillery
+cache_path: /home/test/.cache
+aliases:
+  dist: someother/project

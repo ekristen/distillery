@@ -45,6 +45,28 @@ func TestConfigNewYAML(t *testing.T) {
 	}
 }
 
+func TestDefaultAlias(t *testing.T) {
+	cfg, err := New("")
+	assert.NoError(t, err)
+
+	assert.Equal(t, "latest", cfg.GetAlias("dist").Version)
+}
+
+func TestDefaultAliasAdd(t *testing.T) {
+	cfg, err := New("testdata/default-aliases.yaml")
+	assert.NoError(t, err)
+
+	assert.Equal(t, "latest", cfg.GetAlias("dist").Version)
+	assert.Equal(t, "latest", cfg.GetAlias("aws-nuke").Version)
+}
+
+func TestDefaultAliasNoOverride(t *testing.T) {
+	cfg, err := New("testdata/default-aliases-no-override.yaml")
+	assert.NoError(t, err)
+
+	assert.Equal(t, "someother/project", cfg.GetAlias("dist").Name)
+}
+
 func TestProcessPath(t *testing.T) {
 	homePath, _ := os.UserHomeDir()
 	result := processPath("$HOME/.config/test")

@@ -14,6 +14,16 @@ type Alias struct {
 	Flags   map[string]bool `yaml:"flags" toml:"flags"`
 }
 
+// DefaultAliases - default aliases for distillery, this will only ever be `dist`, I have no plans on maintain
+// aliases for other projects, that is what the configuration is for and is part of the design of this tool, no
+// central repository.
+var DefaultAliases = Aliases{
+	"dist": {
+		Name:    "github/ekristen/distillery",
+		Version: "latest",
+	},
+}
+
 func (a *Alias) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var value string
 	if unmarshal(&value) == nil {
