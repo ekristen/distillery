@@ -496,6 +496,39 @@ func TestAssetInstall(t *testing.T) {
 				"delta",
 			},
 		},
+		{
+			name:     "pie-compiled-binary",
+			os:       "linux",
+			arch:     "amd64",
+			version:  "1.0.0",
+			fileType: Binary,
+			downloadFile: createFile(t, []byte{
+				0x7F, 0x45, 0x4C, 0x46, // Magic number "\x7FELF"
+				0x02,                                     // Class: 64-bit
+				0x01,                                     // Data: Little-endian
+				0x01,                                     // Version: ELF current
+				0x00,                                     // OS/ABI: System V
+				0x00,                                     // ABI Version
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Padding
+				0x03, 0x00, // Type: ET_DYN (Shared object file)
+				0x3E, 0x00, // Machine: x86-64 (AMD64)
+				0x01, 0x00, 0x00, 0x00, // Version: Current
+				// Entry point address, Program header table offset, Section header table offset:
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Entry point address (placeholder)
+				0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Start of program headers
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Start of section headers
+				0x00, 0x00, 0x00, 0x00, // Flags
+				0x40, 0x00, // ELF header size (64 bytes)
+				0x38, 0x00, // Program header size
+				0x01, 0x00, // Number of program headers
+				0x40, 0x00, // Section header size
+				0x00, 0x00, // Number of section headers
+				0x00, 0x00, // Section header string table index
+			}),
+			expectedFiles: []string{
+				"pie-compiled-binary",
+			},
+		},
 	}
 
 	for _, c := range cases {

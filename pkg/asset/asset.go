@@ -1,6 +1,7 @@
 package asset
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -331,7 +332,34 @@ func (a *Asset) determineInstallable() {
 			logrus.Debugf("found installable executable: %s, %s, %s", file.Name, m.String(), m.Extension())
 			file.Installable = true
 		}
+
+		if !file.Installable && a.OS == osconfig.Linux && m.String() == "application/x-sharedlib" {
+			file.Installable = a.determineELF(fullPath)
+		}
 	}
+}
+
+// determineELF determines if the file is an ELF binary, this is a fallback for linux should the mimetype be unable
+// to determine if the file is an executable.
+// Note: this is special code to check if the file is an ELF binary because sometimes the mimetype on linux due to the
+// fact that depending on how gcc is configured the mimetype might be detected as application/x-sharedlib instead
+func (a *Asset) determineELF(path string) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		logrus.WithError(err).Tracef("unable to open file for elf determination1: %s", path)
+		return false
+	}
+	defer f.Close()
+
+	magic := make([]byte, 4)
+	_, err = f.Read(magic)
+	if err != nil {
+		logrus.WithError(err).Trace("error reading file")
+		return false
+	}
+
+	elfMagic := []byte{0x7F, 'E', 'L', 'F'}
+	return bytes.Equal(magic, elfMagic)
 }
 
 var versionReplace = regexp.MustCompile(`\d+\.\d+`)
