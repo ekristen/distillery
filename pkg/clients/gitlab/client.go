@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 
@@ -104,6 +105,7 @@ func (c *Client) GetLatestRelease(ctx context.Context, slug string) (*Release, e
 func (c *Client) GetRelease(ctx context.Context, slug, version string) (*Release, error) {
 	releaseURL := fmt.Sprintf("%s/projects/%s/releases/%s", c.baseURL, url.QueryEscape(slug), url.QueryEscape(version))
 	logrus.Tracef("GET %s", releaseURL)
+	fmt.Println(releaseURL)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", releaseURL, http.NoBody)
 	if err != nil {
@@ -113,7 +115,7 @@ func (c *Client) GetRelease(ctx context.Context, slug, version string) (*Release
 	req.Header.Add("User-Agent", fmt.Sprintf("%s/%s", common.NAME, common.AppVersion))
 
 	if c.token != "" {
-		req.Header.Set("PRIVATE-TOKEN", c.token)
+		//req.Header.Set("PRIVATE-TOKEN", c.token)
 	}
 
 	resp, err := c.client.Do(req)
@@ -121,6 +123,9 @@ func (c *Client) GetRelease(ctx context.Context, slug, version string) (*Release
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	d, _ := io.ReadAll(resp.Body)
+	fmt.Println(string(d))
 
 	var release *Release
 	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {

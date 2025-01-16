@@ -6,8 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/apex/log"
 	"github.com/gregjones/httpcache"
 	"github.com/gregjones/httpcache/diskcache"
+	"github.com/sirupsen/logrus"
 
 	"github.com/ekristen/distillery/pkg/asset"
 	"github.com/ekristen/distillery/pkg/clients/gitlab"
@@ -70,25 +72,12 @@ func (s *GitLab) sourceRun(ctx context.Context) error {
 		s.Client.SetToken(token)
 	}
 
-	if s.Version == provider.VersionLatest {
-		release, err := s.Client.GetLatestRelease(ctx, fmt.Sprintf("%s/%s", s.Owner, s.Repo))
-		if err != nil {
-			return err
-		}
-
-		s.Version = release.TagName
-		s.Release = release
-	} else {
-		release, err := s.Client.GetRelease(ctx, fmt.Sprintf("%s/%s", s.Owner, s.Repo), s.Version)
-		if err != nil {
-			return err
-		}
-
-		s.Release = release
+	if err := s.FindRelease(ctx); err != nil {
+		return err
 	}
 
-	if s.Release == nil {
-		return fmt.Errorf("no release found for %s version %s", s.GetApp(), s.Version)
+	if s.Release.Assets == nil {
+		return fmt.Errorf("release found, but no assets found for %s version %s", s.GetApp(), s.Version)
 	}
 
 	for _, a := range s.Release.Assets.Links {
@@ -98,6 +87,66 @@ func (s *GitLab) sourceRun(ctx context.Context) error {
 			Link:   a,
 		})
 	}
+
+	return nil
+}
+
+func (s *GitLab) FindRelease(ctx context.Context) error {
+	var err error
+	var release *gitlab.Release
+
+	includePreReleases := s.Options.Settings["include-pre-releases"].(bool)
+
+	if s.Version == provider.VersionLatest && !includePreReleases {
+		release, err = s.Client.GetLatestRelease(ctx, fmt.Sprintf("%s/%s", s.Owner, s.Repo))
+		if err != nil && !strings.Contains(err.Error(), "404 Not Found") {
+			return err
+		}
+
+		if release != nil {
+			s.Version = strings.TrimPrefix(release.TagName, "v")
+		}
+	}
+
+	if release == nil {
+		releases, err := s.Client.ListReleases(ctx, fmt.Sprintf("%s/%s", s.Owner, s.Repo))
+		if err != nil {
+			if strings.Contains(err.Error(), "404 Not Found") {
+				gitlabToken := s.Options.Settings["gitlab-token"].(string)
+				if gitlabToken == "" {
+					log.Warn("no authentication token provided, a 404 error may be due to permissions")
+				}
+			}
+
+			return err
+		}
+
+		for _, r := range releases {
+			logrus.
+				WithField("owner", s.GetOwner()).
+				WithField("repo", s.GetRepo()).
+				Tracef("found release: %s", r.TagName)
+
+			if includePreReleases && r.UpcomingRelease {
+				s.Version = strings.TrimPrefix(r.TagName, "v")
+				release = r
+				break
+			}
+
+			tagName := strings.TrimPrefix(r.TagName, "v")
+
+			if tagName == s.Version {
+				release = r
+				break
+			}
+		}
+	}
+
+	if release == nil {
+		return fmt.Errorf("release not found")
+	}
+
+	s.Release = release
 
 	return nil
 }

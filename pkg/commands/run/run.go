@@ -102,6 +102,8 @@ func init() {
 		Usage:       "run [Distfile]",
 		Description: `run a Distfile to install binaries`,
 		Action:      Execute,
+		Before:      common.Before,
+		Flags:       common.Flags(),
 	}
 
 	common.RegisterCommand(cmd)
