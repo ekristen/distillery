@@ -38,8 +38,6 @@ theme:
     - navigation.footer
     - navigation.indexes
     - navigation.path
-    - navigation.tabs
-    - navigation.tabs.sticky
     - navigation.expand
     - navigation.sections
     - navigation.expand

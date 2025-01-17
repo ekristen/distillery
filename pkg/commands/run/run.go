@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/apex/log"
 	"github.com/urfave/cli/v2"
 
 	"github.com/ekristen/distillery/pkg/common"
@@ -68,20 +69,28 @@ func Execute(c *cli.Context) error {
 
 	instCmd := common.GetCommand("install")
 
+	didError := false
 	for _, command := range commands {
 		if command.Action == "install" {
 			ctx := cli.NewContext(c.App, nil, nil)
 			a := []string{"install"}
 			a = append(a, command.Args...)
-			if err := instCmd.Run(ctx, a...); err != nil {
-				return err
+			if installErr := instCmd.Run(ctx, a...); installErr != nil {
+				didError = true
+				log.WithError(installErr).Error("error running install command")
 			}
 		}
 
-		select { //nolint:gosimple
+		select {
 		case <-c.Context.Done():
 			return nil
+		default:
+			continue
 		}
+	}
+
+	if didError {
+		return errors.New("one or more install commands failed")
 	}
 
 	return nil
@@ -93,6 +102,8 @@ func init() {
 		Usage:       "run [Distfile]",
 		Description: `run a Distfile to install binaries`,
 		Action:      Execute,
+		Before:      common.Before,
+		Flags:       common.Flags(),
 	}
 
 	common.RegisterCommand(cmd)

@@ -49,10 +49,6 @@ func Execute(c *cli.Context) error { //nolint:gocyclo,funlen
 		name = fmt.Sprintf("%s@%s", name, version)
 	}
 
-	if name == "ekristen/distillery" {
-		_ = c.Set("include-pre-releases", "true")
-	}
-
 	src, err := NewSource(name, &provider.Options{
 		OS:     c.String("os"),
 		Arch:   c.String("arch"),

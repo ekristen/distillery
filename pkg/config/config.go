@@ -69,13 +69,32 @@ func (c *Config) GetOptPath() string {
 	return processPath(filepath.Join(c.GetPath(), "opt"))
 }
 
-// GetAlias - get an alias by name
-func (c *Config) GetAlias(name string) *Alias {
+// GetAliases - get all defined aliases, add the default alias if it doesn't exist
+func (c *Config) GetAliases() *Aliases {
 	if c.Aliases == nil {
-		return nil
+		return &DefaultAliases
 	}
 
-	for short, alias := range *c.Aliases {
+	hasDist := false
+	for short := range *c.Aliases {
+		if short == "dist" {
+			hasDist = true
+		}
+	}
+
+	if !hasDist {
+		(*c.Aliases)["dist"] = &Alias{
+			Name:    "github/ekristen/distillery",
+			Version: "latest",
+		}
+	}
+
+	return c.Aliases
+}
+
+// GetAlias - get an alias by name
+func (c *Config) GetAlias(name string) *Alias {
+	for short, alias := range *c.GetAliases() {
 		if short == name {
 			return alias
 		}
