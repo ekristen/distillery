@@ -34,7 +34,7 @@ func discover(cwd string) (string, error) {
 	return "", errors.New("no Distfile found in current directory or $HOME")
 }
 
-func Execute(c *cli.Context) error {
+func Execute(c *cli.Context) error { //nolint:gocyclo
 	var df string
 	if c.Args().Len() == 0 {
 		// Check current working directory
@@ -99,7 +99,7 @@ func Execute(c *cli.Context) error {
 			}(command)
 		} else {
 			// this is for any other action that's detected that we don't support right now
-			wg.Add(-1)
+			wg.Done()
 		}
 
 		select {
