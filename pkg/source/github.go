@@ -146,12 +146,6 @@ func (s *GitHub) FindRelease(ctx context.Context) error {
 				WithField("repo", s.GetRepo()).
 				Tracef("found release: %s", r.GetTagName())
 
-			if includePreReleases && r.GetPrerelease() {
-				s.Version = strings.TrimPrefix(r.GetTagName(), "v")
-				release = r
-				break
-			}
-
 			tagName := strings.TrimPrefix(r.GetTagName(), "v")
 
 			if tagName == s.Version {
