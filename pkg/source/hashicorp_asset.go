@@ -36,12 +36,7 @@ func (a *HashicorpAsset) Path() string {
 }
 
 func (a *HashicorpAsset) Download(ctx context.Context) error {
-	cacheDir, err := os.UserCacheDir()
-	if err != nil {
-		return err
-	}
-
-	downloadsDir := filepath.Join(cacheDir, common.NAME, "downloads")
+	downloadsDir := a.Hashicorp.Options.Config.GetDownloadsPath()
 	filename := filepath.Base(a.Build.URL)
 
 	assetFile := filepath.Join(downloadsDir, filename)

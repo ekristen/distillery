@@ -35,12 +35,7 @@ func (a *HTTPAsset) Path() string {
 }
 
 func (a *HTTPAsset) Download(ctx context.Context) error {
-	cacheDir, err := os.UserCacheDir()
-	if err != nil {
-		return err
-	}
-
-	downloadsDir := filepath.Join(cacheDir, common.NAME, "downloads")
+	downloadsDir := a.Source.GetOptions().Config.GetDownloadsPath()
 	filename := filepath.Base(a.URL)
 
 	assetFile := filepath.Join(downloadsDir, filename)

@@ -14,4 +14,5 @@ type ISource interface {
 	GetVersion() string
 	PreRun(context.Context) error
 	Run(context.Context) error
+	GetOptions() *Options
 }

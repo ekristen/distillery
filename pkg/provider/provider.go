@@ -65,6 +65,10 @@ func (p *Provider) GetVersion() string {
 	return "not-implemented"
 }
 
+func (p *Provider) GetOptions() *Options {
+	return p.Options
+}
+
 // CommonRun - common run logic for all sources that includes download, extract, install and cleanup
 func (p *Provider) CommonRun(ctx context.Context) error {
 	if err := p.Download(ctx); err != nil {

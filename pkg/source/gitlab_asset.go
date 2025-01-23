@@ -32,12 +32,7 @@ func (a *GitLabAsset) Path() string {
 }
 
 func (a *GitLabAsset) Download(ctx context.Context) error { //nolint:dupl,nolintlint
-	cacheDir, err := os.UserCacheDir()
-	if err != nil {
-		return err
-	}
-
-	downloadsDir := filepath.Join(cacheDir, common.NAME, "downloads")
+	downloadsDir := a.GitLab.Options.Config.GetDownloadsPath()
 	filename := filepath.Base(a.Link.URL)
 
 	assetFile := filepath.Join(downloadsDir, filename)
