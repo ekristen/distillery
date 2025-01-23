@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/apex/log"
 	"github.com/urfave/cli/v2"
@@ -69,16 +70,36 @@ func Execute(c *cli.Context) error {
 
 	instCmd := common.GetCommand("install")
 
-	didError := false
+	parallel := c.Int("parallel")
+
+	if parallel > 1 {
+		log.Warn("experimental feature: you are using parallel installs, it might not work as expected")
+		log.Warn("experimental feature: all logging output will be mixed together")
+	}
+
+	var wg sync.WaitGroup
+	errCh := make(chan error, len(commands))
+
+	sem := make(chan struct{}, parallel)
+
 	for _, command := range commands {
 		if command.Action == "install" {
-			ctx := cli.NewContext(c.App, nil, nil)
-			a := []string{"install"}
-			a = append(a, command.Args...)
-			if installErr := instCmd.Run(ctx, a...); installErr != nil {
-				didError = true
-				log.WithError(installErr).Error("error running install command")
-			}
+			wg.Add(1)
+			go func(command distfile.Command) {
+				defer wg.Done()
+				sem <- struct{}{}
+				defer func() { <-sem }()
+
+				ctx := cli.NewContext(c.App, nil, nil)
+				args := append([]string{"install"}, command.Args...)
+				if installErr := instCmd.Run(ctx, args...); installErr != nil {
+					errCh <- installErr
+					log.WithError(installErr).Error("error running install command")
+				}
+			}(command)
+		} else {
+			// this is for any other action that's detected that we don't support right now
+			wg.Add(-1)
 		}
 
 		select {
@@ -86,6 +107,16 @@ func Execute(c *cli.Context) error {
 			return nil
 		default:
 			continue
+		}
+	}
+
+	wg.Wait()
+	close(errCh)
+
+	var didError bool
+	for err := range errCh {
+		if err != nil {
+			didError = true
 		}
 	}
 
@@ -97,13 +128,22 @@ func Execute(c *cli.Context) error {
 }
 
 func init() {
+	flags := []cli.Flag{
+		&cli.IntFlag{
+			Name:    "parallel",
+			Aliases: []string{"p"},
+			Usage:   "EXPERIMENTAL FEATURE: number of parallel installs to run",
+			Value:   1,
+		},
+	}
+
 	cmd := &cli.Command{
 		Name:        "run",
 		Usage:       "run [Distfile]",
 		Description: `run a Distfile to install binaries`,
 		Action:      Execute,
 		Before:      common.Before,
-		Flags:       common.Flags(),
+		Flags:       append(flags, common.Flags()...),
 	}
 
 	common.RegisterCommand(cmd)
