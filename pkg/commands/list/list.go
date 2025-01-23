@@ -18,7 +18,7 @@ func Execute(c *cli.Context) error {
 		return err
 	}
 
-	inv := inventory.New(os.DirFS(cfg.BinPath), cfg.BinPath, cfg.GetOptPath(), cfg)
+	inv := inventory.New(os.DirFS(cfg.GetPath()), cfg.GetPath(), cfg.GetOptPath(), cfg)
 
 	for _, key := range inv.GetBinsSortedKeys() {
 		bin := inv.Bins[key]
