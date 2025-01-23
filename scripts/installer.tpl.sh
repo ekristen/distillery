@@ -81,4 +81,4 @@ check_sha_version() {
 )
 
 tar -xf "$TMP_DIR/$TAR_FILE" -C "$TMP_DIR"
-"$TMP_DIR/dist" "install" "github/ekristen/distillery@{$VERSION}" "$@"
+"$TMP_DIR/dist" "install" "github/ekristen/distillery@${VERSION}" "$@"
