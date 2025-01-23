@@ -1,5 +1,10 @@
 #!/usr/bin/env sh
-set -e
+
+set -eu
+
+if [ -n "${DEBUG:-}" ]; then
+  set -x
+fi
 
 RELEASES_URL="https://github.com/ekristen/distillery/releases"
 FILE_BASENAME="distillery"
@@ -76,4 +81,4 @@ check_sha_version() {
 )
 
 tar -xf "$TMP_DIR/$TAR_FILE" -C "$TMP_DIR"
-"$TMP_DIR/dist" "install" "ekristen/distillery" "$@"
+"$TMP_DIR/dist" "install" "github/ekristen/distillery@{$VERSION}" "$@"
