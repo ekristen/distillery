@@ -499,7 +499,8 @@ func (p *Provider) discoverMatch() error { //nolint:gocyclo
 		keyName := strings.ReplaceAll(a.GetName(), ".asc", ".pub")
 
 		gpgAsset := &GPGAsset{
-			Asset: asset.New(keyName, "", p.GetOS(), p.GetArch(), ""),
+			Asset:   asset.New(keyName, "", p.GetOS(), p.GetArch(), ""),
+			Options: p.GetOptions(),
 		}
 
 		logrus.WithField("sig", a.GetName()).WithField("key", gpgAsset.GetName()).Trace("matched asset")

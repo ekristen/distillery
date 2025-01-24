@@ -18,7 +18,8 @@ import (
 type GPGAsset struct {
 	*asset.Asset
 
-	KeyID uint64
+	KeyID   uint64
+	Options *Options
 
 	Source ISource
 }
@@ -39,7 +40,7 @@ func (a *GPGAsset) Download(ctx context.Context) error {
 		return err
 	}
 
-	downloadsDir := a.Source.GetOptions().Config.GetDownloadsPath()
+	downloadsDir := a.Options.Config.GetDownloadsPath()
 	filename := strconv.FormatUint(a.KeyID, 10)
 
 	assetFile := filepath.Join(downloadsDir, filename)
