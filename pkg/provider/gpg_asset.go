@@ -13,13 +13,13 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/ekristen/distillery/pkg/asset"
-	"github.com/ekristen/distillery/pkg/common"
 )
 
 type GPGAsset struct {
 	*asset.Asset
 
-	KeyID uint64
+	KeyID   uint64
+	Options *Options
 
 	Source ISource
 }
@@ -33,18 +33,14 @@ func (a *GPGAsset) Path() string {
 }
 
 func (a *GPGAsset) Download(ctx context.Context) error {
-	cacheDir, err := os.UserCacheDir()
-	if err != nil {
-		return err
-	}
-
+	var err error
 	a.KeyID, err = a.MatchedAsset.GetGPGKeyID()
 	if err != nil {
 		logrus.WithError(err).Trace("unable to get GPG key")
 		return err
 	}
 
-	downloadsDir := filepath.Join(cacheDir, common.NAME, "downloads")
+	downloadsDir := a.Options.Config.GetDownloadsPath()
 	filename := strconv.FormatUint(a.KeyID, 10)
 
 	assetFile := filepath.Join(downloadsDir, filename)

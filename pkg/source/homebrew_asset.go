@@ -14,7 +14,6 @@ import (
 
 	"github.com/ekristen/distillery/pkg/asset"
 	"github.com/ekristen/distillery/pkg/clients/homebrew"
-	"github.com/ekristen/distillery/pkg/common"
 )
 
 type HomebrewAsset struct {
@@ -71,12 +70,7 @@ func (a *HomebrewAsset) getAuthToken() (*GHCRAuth, error) {
 }
 
 func (a *HomebrewAsset) Download(ctx context.Context) error {
-	cacheDir, err := os.UserCacheDir()
-	if err != nil {
-		return err
-	}
-
-	downloadsDir := filepath.Join(cacheDir, common.NAME, "downloads")
+	downloadsDir := a.Homebrew.Options.Config.GetDownloadsPath()
 	filename := filepath.Base(a.Name + ".tar.gz")
 
 	assetFile := filepath.Join(downloadsDir, filename)

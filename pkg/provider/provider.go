@@ -65,6 +65,10 @@ func (p *Provider) GetVersion() string {
 	return "not-implemented"
 }
 
+func (p *Provider) GetOptions() *Options {
+	return p.Options
+}
+
 // CommonRun - common run logic for all sources that includes download, extract, install and cleanup
 func (p *Provider) CommonRun(ctx context.Context) error {
 	if err := p.Download(ctx); err != nil {
@@ -495,7 +499,8 @@ func (p *Provider) discoverMatch() error { //nolint:gocyclo
 		keyName := strings.ReplaceAll(a.GetName(), ".asc", ".pub")
 
 		gpgAsset := &GPGAsset{
-			Asset: asset.New(keyName, "", p.GetOS(), p.GetArch(), ""),
+			Asset:   asset.New(keyName, "", p.GetOS(), p.GetArch(), ""),
+			Options: p.GetOptions(),
 		}
 
 		logrus.WithField("sig", a.GetName()).WithField("key", gpgAsset.GetName()).Trace("matched asset")

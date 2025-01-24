@@ -141,20 +141,16 @@ func (s *GitHub) FindRelease(ctx context.Context) error {
 		}
 
 		for _, r := range releases {
+			tagName := strings.TrimPrefix(r.GetTagName(), "v")
+
 			logrus.
 				WithField("owner", s.GetOwner()).
 				WithField("repo", s.GetRepo()).
-				Tracef("found release: %s", r.GetTagName())
+				WithField("want", s.Version).
+				WithField("found", tagName).
+				Tracef("found release: %s", tagName)
 
-			if includePreReleases && r.GetPrerelease() {
-				s.Version = strings.TrimPrefix(r.GetTagName(), "v")
-				release = r
-				break
-			}
-
-			tagName := strings.TrimPrefix(r.GetTagName(), "v")
-
-			if tagName == s.Version {
+			if tagName == strings.TrimPrefix(s.Version, "v") {
 				release = r
 				break
 			}

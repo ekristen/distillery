@@ -13,7 +13,6 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/ekristen/distillery/pkg/asset"
-	"github.com/ekristen/distillery/pkg/common"
 )
 
 type GitHubAsset struct {
@@ -43,11 +42,7 @@ func (a *GitHubAsset) Download(ctx context.Context) error {
 		logrus.Tracef("url: %s", url)
 	}
 
-	cacheDir, err := os.UserCacheDir()
-	if err != nil {
-		return err
-	}
-	downloadsDir := filepath.Join(cacheDir, common.NAME, "downloads")
+	downloadsDir := a.GitHub.Options.Config.GetDownloadsPath()
 
 	filename := a.ID()
 
