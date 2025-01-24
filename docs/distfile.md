@@ -26,6 +26,18 @@ dist proof
 dist run <distfile>
 ```
 
+### Parallel Installs
+
+!!! warning
+    Experimental Feature - it might not work correctly and the CLI output will be all mixed together. Expect the CLI 
+    output to change in future versions.
+
+Currently, it takes an integer value for the number of parallel installations to run. 
+
+```console
+dist run --parallel <number> [distfile]
+```
+
 ## Instructions
 
 These are the current supported instructions.
