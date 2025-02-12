@@ -56,7 +56,7 @@ iwr https://get.dist.sh/install.ps1 -useb | iex
 #### MacOS/Linux
 
 ```bash
-export PATH=$HOME/.distillery/bin:$PATH`
+export PATH=$HOME/.distillery/bin:$PATH
 ```
 
 #### Windows
