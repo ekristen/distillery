@@ -248,8 +248,9 @@ func Flags() []cli.Flag {
 			Usage: "force the installation of the binary even if it is already installed",
 		},
 		&cli.BoolFlag{
-			Name:  "use-dist-cache",
-			Usage: "[EXPERIMENTAL] use the distillery pass-through cache for github to avoid authentication",
+			Name:    "use-dist-cache",
+			EnvVars: []string{"DISTILLERY_USE_CACHE"},
+			Usage:   "[EXPERIMENTAL] use the distillery pass-through cache for github to avoid authentication",
 		},
 		&cli.StringFlag{
 			Name:   "dist-cache-url",
