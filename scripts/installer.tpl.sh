@@ -9,7 +9,7 @@ fi
 SKIP_CHECKSUM="${SKIP_CHECKSUM:-}"
 RELEASES_URL="https://github.com/ekristen/distillery/releases"
 FILE_BASENAME="distillery"
-LATEST="v1.7.0-next.6"
+LATEST="__VERSION__"
 
 test -z "$VERSION" && VERSION="$LATEST"
 
@@ -31,8 +31,8 @@ esac
 TAR_FILE="${FILE_BASENAME}-${VERSION}-${OS}-${ARCH}.tar.gz"
 
 validate_sha256() {
-    local tar_file=$1
-    local checksum_file=$2
+    tar_file=$1
+    checksum_file=$2
 
     if command -v sha256sum >/dev/null 2>&1; then
         sha256sum --ignore-missing --quiet --check "$checksum_file" > /dev/null 2>&1 && return 0
