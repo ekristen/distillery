@@ -49,6 +49,10 @@ func Execute(c *cli.Context) error { //nolint:gocyclo,funlen
 		name = fmt.Sprintf("%s@%s", name, version)
 	}
 
+	if c.Bool("use-dist-cache") {
+		log.Warn("[EXPERIMENTAL FEATURE] using distillery pass-through cache, this may not work as expected")
+	}
+
 	src, err := NewSource(name, &provider.Options{
 		OS:     c.String("os"),
 		Arch:   c.String("arch"),
@@ -253,8 +257,11 @@ func Flags() []cli.Flag {
 			Usage:   "[EXPERIMENTAL] use the distillery pass-through cache for github to avoid authentication",
 		},
 		&cli.StringFlag{
-			Name:   "dist-cache-url",
-			Value:  "https://api.github.cache.dist.sh",
+			Name:    "dist-cache-url",
+			Value:   "https://api.github.cache.dist.sh",
+			EnvVars: []string{"DISTILLERY_CACHE_URL"},
+			Usage: "[EXPERIMENTAL] specify the base url for the distillery pass-through cache" +
+				" for github to avoid authentication and rate limiting",
 			Hidden: true,
 		},
 	}
