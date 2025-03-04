@@ -5,7 +5,7 @@ go 1.23
 toolchain go1.24.0
 
 require (
-	github.com/ProtonMail/gopenpgp/v2 v2.8.3
+	github.com/ProtonMail/gopenpgp/v3 v3.1.3
 	github.com/apex/log v1.9.0
 	github.com/dsnet/compress v0.0.2-0.20230904184137-39efe44ab707
 	github.com/gabriel-vasile/mimetype v1.4.8
@@ -23,7 +23,6 @@ require (
 
 require (
 	github.com/ProtonMail/go-crypto v1.1.6 // indirect
-	github.com/ProtonMail/go-mime v0.0.0-20230322103455-7d82a3887f2f // indirect
 	github.com/STARRY-S/zip v0.2.2 // indirect
 	github.com/andybalholm/brotli v1.1.1 // indirect
 	github.com/bodgit/plumbing v1.3.0 // indirect
