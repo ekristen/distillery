@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/apex/log"
-	"github.com/google/go-github/v69/github"
+	"github.com/google/go-github/v70/github"
 	"github.com/gregjones/httpcache"
 	"github.com/gregjones/httpcache/diskcache"
 
