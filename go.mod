@@ -12,7 +12,7 @@ require (
 	github.com/google/go-github/v69 v69.2.0
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
 	github.com/h2non/filetype v1.1.3
-	github.com/mholt/archives v0.1.0
+	github.com/mholt/archives v0.1.1
 	github.com/pelletier/go-toml/v2 v2.2.3
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
@@ -43,6 +43,7 @@ require (
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/minio/minlz v1.0.0 // indirect
 	github.com/nwaples/rardecode/v2 v2.1.1 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
