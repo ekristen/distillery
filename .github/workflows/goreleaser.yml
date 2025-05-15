@@ -38,7 +38,7 @@ jobs:
           go-version: 1.24.x
       - uses: anchore/sbom-action/download-syft@e11c554f704a0b820cbf8c51673f6945e0731532 # v0.20.0
       - name: install cosign
-        uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a # v3
+        uses: sigstore/cosign-installer@3454372f43399081ed03b604cb2d021dabca52bb # v3
       - name: install quill
         env:
           QUILL_VERSION: 0.4.1
