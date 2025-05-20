@@ -3,6 +3,7 @@ package source
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"path/filepath"
 	"strings"
 
@@ -87,10 +88,32 @@ func (s *GitHub) sourceRun(ctx context.Context) error { //nolint:dupl
 	cacheFile := filepath.Join(s.Options.Config.GetMetadataPath(), fmt.Sprintf("cache-%s", s.GetID()))
 
 	s.client = github.NewClient(httpcache.NewTransport(diskcache.New(cacheFile)).Client())
-	githubToken := s.Options.Settings["github-token"].(string)
-	if githubToken != "" {
-		log.Debug("auth token provided")
-		s.client = s.client.WithAuthToken(githubToken)
+	useDistCache := s.Options.Settings["use-dist-cache"].(bool)
+	if useDistCache {
+		log.Debug("using disk cache")
+		baseURL := s.Options.Settings["dist-cache-url"].(string)
+		if baseURL != "" {
+			if strings.HasPrefix(baseURL, "http:") {
+				log.Debugf("using disk cache with base url: %s", baseURL)
+				s.client.BaseURL = &url.URL{
+					Scheme: "http",
+					Host:   strings.Replace(baseURL, "http://", "", 1),
+					Path:   "/",
+				}
+			} else {
+				s.client.BaseURL = &url.URL{
+					Scheme: "https",
+					Host:   strings.Replace(baseURL, "https://", "", 1),
+					Path:   "/",
+				}
+			}
+		}
+	} else {
+		githubToken := s.Options.Settings["github-token"].(string)
+		if githubToken != "" {
+			log.Debug("auth token provided")
+			s.client = s.client.WithAuthToken(githubToken)
+		}
 	}
 
 	if err := s.FindRelease(ctx); err != nil {
