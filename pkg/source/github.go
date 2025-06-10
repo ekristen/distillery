@@ -105,7 +105,7 @@ func (s *GitHub) sourceRun(ctx context.Context) error { //nolint:dupl
 }
 
 // FindRelease - query API to find the version being sought or return an error
-func (s *GitHub) FindRelease(ctx context.Context) error {
+func (s *GitHub) FindRelease(ctx context.Context) error { //nolint:gocyclo
 	var err error
 	var release *github.RepositoryRelease
 
