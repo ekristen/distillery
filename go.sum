@@ -25,8 +25,8 @@ github.com/ProtonMail/gopenpgp/v2 v2.9.0 h1:ruLzBmwe4dR1hdnrsEJ/S7psSBmV15gFttFU
 github.com/ProtonMail/gopenpgp/v2 v2.9.0/go.mod h1:IldDyh9Hv1ZCCYatTuuEt1XZJ0OPjxLpTarDfglih7s=
 github.com/STARRY-S/zip v0.2.3 h1:luE4dMvRPDOWQdeDdUxUoZkzUIpTccdKdhHHsQJ1fm4=
 github.com/STARRY-S/zip v0.2.3/go.mod h1:lqJ9JdeRipyOQJrYSOtpNAiaesFO6zVDsE8GIGFaoSk=
-github.com/andybalholm/brotli v1.1.2-0.20250424173009-453214e765f3 h1:8PmGpDEZl9yDpcdEr6Odf23feCxK3LNUNMxjXg41pZQ=
-github.com/andybalholm/brotli v1.1.2-0.20250424173009-453214e765f3/go.mod h1:05ib4cKhjx3OQYUY22hTVd34Bc8upXjOLL2rKwwZBoA=
+github.com/andybalholm/brotli v1.1.2-0.20250603190520-676a02057d90 h1:PDdIMNsPFndrjAkIwUXm3SsoEsvQ9SXtP4TbzP2L5H0=
+github.com/andybalholm/brotli v1.1.2-0.20250603190520-676a02057d90/go.mod h1:rzTDkvFWvIrjDXZHkuS16NPggd91W3kUSvPlQ1pLaKY=
 github.com/apex/log v1.9.0 h1:FHtw/xuaM8AgmvDDTI9fiwoAL25Sq2cxojnZICUU8l0=
 github.com/apex/log v1.9.0/go.mod h1:m82fZlWIuiWzWP04XCTXmnX0xRkYYbCdYn8jbJeLBEA=
 github.com/apex/logs v1.0.0/go.mod h1:XzxuLZ5myVHDy9SAmYpamKKRNApGj54PfYLcFrXqDwo=
