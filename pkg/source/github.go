@@ -105,7 +105,7 @@ func (s *GitHub) sourceRun(ctx context.Context) error { //nolint:dupl
 }
 
 // FindRelease - query API to find the version being sought or return an error
-func (s *GitHub) FindRelease(ctx context.Context) error {
+func (s *GitHub) FindRelease(ctx context.Context) error { //nolint:gocyclo
 	var err error
 	var release *github.RepositoryRelease
 
@@ -128,32 +128,45 @@ func (s *GitHub) FindRelease(ctx context.Context) error {
 	}
 
 	if release == nil {
-		releases, _, err := s.client.Repositories.ListReleases(ctx, s.GetOwner(), s.GetRepo(), nil)
-		if err != nil {
-			if strings.Contains(err.Error(), "404 Not Found") {
-				githubToken := s.Options.Settings["github-token"].(string)
-				if githubToken == "" {
-					log.Warn("no authentication token provided, a 404 error may be due to permissions")
+		params := &github.ListOptions{
+			PerPage: 100,
+		}
+
+		for {
+			releases, res, err := s.client.Repositories.ListReleases(ctx, s.GetOwner(), s.GetRepo(), params)
+			if err != nil {
+				if strings.Contains(err.Error(), "404 Not Found") {
+					githubToken := s.Options.Settings["github-token"].(string)
+					if githubToken == "" {
+						log.Warn("no authentication token provided, a 404 error may be due to permissions")
+					}
+				}
+
+				return err
+			}
+
+			for _, r := range releases {
+				tagName := strings.TrimPrefix(r.GetTagName(), "v")
+
+				logrus.
+					WithField("owner", s.GetOwner()).
+					WithField("repo", s.GetRepo()).
+					WithField("want", s.Version).
+					WithField("found", tagName).
+					Tracef("found release: %s", tagName)
+
+				if tagName == strings.TrimPrefix(s.Version, "v") {
+					release = r
+					break
 				}
 			}
 
-			return err
-		}
-
-		for _, r := range releases {
-			tagName := strings.TrimPrefix(r.GetTagName(), "v")
-
-			logrus.
-				WithField("owner", s.GetOwner()).
-				WithField("repo", s.GetRepo()).
-				WithField("want", s.Version).
-				WithField("found", tagName).
-				Tracef("found release: %s", tagName)
-
-			if tagName == strings.TrimPrefix(s.Version, "v") {
-				release = r
+			// If we found the release or there are no more pages, break the loop
+			if release != nil || res.NextPage == 0 {
 				break
 			}
+
+			params.Page = res.NextPage
 		}
 	}
 
