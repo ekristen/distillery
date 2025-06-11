@@ -9,7 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 
 	"github.com/ekristen/distillery/pkg/asset"
 	"github.com/ekristen/distillery/pkg/clients/hashicorp"
@@ -50,11 +50,11 @@ func (a *HashicorpAsset) Download(ctx context.Context) error {
 	}
 
 	if stats != nil {
-		logrus.Debug("file already downloaded")
+		log.Debug().Msg("file already downloaded")
 		return nil
 	}
 
-	logrus.Debugf("downloading asset: %s", a.Build.URL)
+	log.Debug().Msgf("downloading asset: %s", a.Build.URL)
 
 	req, err := http.NewRequestWithContext(context.TODO(), "GET", a.Build.URL, http.NoBody)
 	if err != nil {
@@ -98,12 +98,12 @@ func (a *HashicorpAsset) Download(ctx context.Context) error {
 		return err
 	}
 
-	logrus.Tracef("hash: %x", hasher.Sum(nil))
+	log.Trace().Msgf("hash: %x", hasher.Sum(nil))
 
 	_ = os.WriteFile(assetFileHash, []byte(fmt.Sprintf("%x", hasher.Sum(nil))), 0600)
 	a.Hash = string(hasher.Sum(nil))
 
-	logrus.Tracef("Downloaded asset to: %s", tmpFile.Name())
+	log.Trace().Msgf("Downloaded asset to: %s", tmpFile.Name())
 
 	return nil
 }

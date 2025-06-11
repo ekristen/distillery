@@ -1,14 +1,15 @@
 package common
 
 import (
-	"fmt"
-	"path"
-	"runtime"
+	"io"
+	"os"
 
-	"github.com/apex/log"
-	clilog "github.com/apex/log/handlers/cli"
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+
 	"github.com/urfave/cli/v2"
+
+	"github.com/ekristen/distillery/pkg/spinner"
 )
 
 func Flags() []cli.Flag {
@@ -21,19 +22,18 @@ func Flags() []cli.Flag {
 			Value:    "info",
 			Category: "Logging Options",
 		},
+		&cli.StringFlag{
+			Name:     "log-format",
+			Usage:    "Log output format (pretty or json)",
+			EnvVars:  []string{"LOG_FORMAT"},
+			Value:    "pretty",
+			Category: "Logging Options",
+		},
 		&cli.BoolFlag{
 			Name:     "log-caller",
-			Usage:    "log the caller (aka line number and file)",
-			Category: "Logging Options",
-		},
-		&cli.BoolFlag{
-			Name:     "log-disable-color",
-			Usage:    "disable log coloring",
-			Category: "Logging Options",
-		},
-		&cli.BoolFlag{
-			Name:     "log-full-timestamp",
-			Usage:    "force log output to always show full timestamp",
+			Usage:    "include the file/line number of the log entry",
+			EnvVars:  []string{"LOG_CALLER"},
+			Value:    true,
 			Category: "Logging Options",
 		},
 	}
@@ -42,38 +42,30 @@ func Flags() []cli.Flag {
 }
 
 func Before(c *cli.Context) error {
-	log.SetHandler(clilog.Default)
-
-	formatter := &logrus.TextFormatter{
-		DisableColors: c.Bool("log-disable-color"),
-		FullTimestamp: c.Bool("log-full-timestamp"),
+	logLevelStr := c.String("log-level")
+	level, err := zerolog.ParseLevel(logLevelStr)
+	if err != nil {
+		// Fallback to info if parsing fails
+		level = zerolog.InfoLevel
+		log.Error().Msgf("invalid log level '%s', defaulting to 'info'. error: %v\n", logLevelStr, err)
 	}
+	zerolog.SetGlobalLevel(level)
+
+	var outputWriter io.Writer
+	outputWriter = zerolog.ConsoleWriter{
+		Out: os.Stdout,
+	}
+	if zerolog.GlobalLevel() == zerolog.InfoLevel {
+		outputWriter = spinner.NewWriter()
+	}
+	if c.String("log-format") == "json" || c.Bool("json") {
+		outputWriter = os.Stdout
+	}
+
 	if c.Bool("log-caller") {
-		logrus.SetReportCaller(true)
-
-		formatter.CallerPrettyfier = func(f *runtime.Frame) (string, string) {
-			return "", fmt.Sprintf("%s:%d", path.Base(f.File), f.Line)
-		}
-	}
-
-	logrus.SetFormatter(formatter)
-
-	switch c.String("log-level") {
-	case "trace":
-		logrus.SetLevel(logrus.TraceLevel)
-		log.SetLevel(log.DebugLevel)
-	case "debug":
-		logrus.SetLevel(logrus.DebugLevel)
-		log.SetLevel(log.DebugLevel)
-	case "info":
-		logrus.SetLevel(logrus.InfoLevel)
-		log.SetLevel(log.InfoLevel)
-	case "warn":
-		logrus.SetLevel(logrus.WarnLevel)
-		log.SetLevel(log.WarnLevel)
-	case "error":
-		logrus.SetLevel(logrus.ErrorLevel)
-		log.SetLevel(log.ErrorLevel)
+		log.Logger = zerolog.New(outputWriter).With().Ctx(c.Context).Timestamp().Caller().Logger()
+	} else {
+		log.Logger = zerolog.New(outputWriter).With().Ctx(c.Context).Timestamp().Logger()
 	}
 
 	return nil

@@ -21,17 +21,19 @@ func NewSource(src string, opts *provider.Options) (provider.ISource, error) { /
 
 	parts := strings.Split(src, "/")
 
+	providerConfig := provider.Provider{Options: opts, OSConfig: detectedOS, Logger: opts.Logger}
+
 	if len(parts) == 1 {
 		switch opts.Config.DefaultSource {
 		case source.HomebrewSource:
 			return &source.Homebrew{
-				Provider: provider.Provider{Options: opts, OSConfig: detectedOS},
+				Provider: providerConfig,
 				Formula:  parts[0],
 				Version:  version,
 			}, nil
 		case source.HashicorpSource:
 			return &source.Hashicorp{
-				Provider: provider.Provider{Options: opts, OSConfig: detectedOS},
+				Provider: providerConfig,
 				Owner:    parts[0],
 				Repo:     parts[0],
 				Version:  version,
@@ -39,7 +41,7 @@ func NewSource(src string, opts *provider.Options) (provider.ISource, error) { /
 		case source.KubernetesSource:
 			return &source.Kubernetes{
 				GitHub: source.GitHub{
-					Provider: provider.Provider{Options: opts, OSConfig: detectedOS},
+					Provider: providerConfig,
 					Owner:    source.KubernetesSource,
 					Repo:     source.KubernetesSource,
 					Version:  version,
@@ -55,13 +57,13 @@ func NewSource(src string, opts *provider.Options) (provider.ISource, error) { /
 		// could be GitHub or Homebrew or Hashicorp
 		if parts[0] == source.HomebrewSource {
 			return &source.Homebrew{
-				Provider: provider.Provider{Options: opts, OSConfig: detectedOS},
+				Provider: providerConfig,
 				Formula:  parts[1],
 				Version:  version,
 			}, nil
 		} else if parts[0] == source.HashicorpSource {
 			return &source.Hashicorp{
-				Provider: provider.Provider{Options: opts, OSConfig: detectedOS},
+				Provider: providerConfig,
 				Owner:    parts[1],
 				Repo:     parts[1],
 				Version:  version,
@@ -69,7 +71,7 @@ func NewSource(src string, opts *provider.Options) (provider.ISource, error) { /
 		} else if parts[0] == source.KubernetesSource {
 			return &source.Kubernetes{
 				GitHub: source.GitHub{
-					Provider: provider.Provider{Options: opts, OSConfig: detectedOS},
+					Provider: providerConfig,
 					Owner:    source.KubernetesSource,
 					Repo:     source.KubernetesSource,
 					Version:  version,
@@ -79,7 +81,7 @@ func NewSource(src string, opts *provider.Options) (provider.ISource, error) { /
 		} else if parts[0] == source.HelmSource {
 			return &source.Helm{
 				GitHub: source.GitHub{
-					Provider: provider.Provider{Options: opts, OSConfig: detectedOS},
+					Provider: providerConfig,
 					Owner:    source.HelmSource,
 					Repo:     source.HelmSource,
 					Version:  version,
@@ -91,7 +93,7 @@ func NewSource(src string, opts *provider.Options) (provider.ISource, error) { /
 		switch opts.Config.DefaultSource {
 		case source.GitHubSource:
 			return &source.GitHub{
-				Provider: provider.Provider{Options: opts, OSConfig: detectedOS},
+				Provider: providerConfig,
 				Owner:    parts[0],
 				Repo:     parts[1],
 				Version:  version,
@@ -101,7 +103,7 @@ func NewSource(src string, opts *provider.Options) (provider.ISource, error) { /
 			repo := parts[len(parts)-1]
 
 			return &source.GitLab{
-				Provider: provider.Provider{Options: opts, OSConfig: detectedOS},
+				Provider: providerConfig,
 				Owner:    owner,
 				Repo:     repo,
 				Version:  version,
@@ -113,7 +115,7 @@ func NewSource(src string, opts *provider.Options) (provider.ISource, error) { /
 		if strings.HasPrefix(parts[0], source.GitHubSource) {
 			if parts[1] == source.HashicorpSource {
 				return &source.Hashicorp{
-					Provider: provider.Provider{Options: opts, OSConfig: detectedOS},
+					Provider: providerConfig,
 					Owner:    parts[1],
 					Repo:     parts[2],
 					Version:  version,
@@ -121,7 +123,7 @@ func NewSource(src string, opts *provider.Options) (provider.ISource, error) { /
 			} else if parts[1] == source.KubernetesSource {
 				return &source.Kubernetes{
 					GitHub: source.GitHub{
-						Provider: provider.Provider{Options: opts, OSConfig: detectedOS},
+						Provider: providerConfig,
 						Owner:    source.KubernetesSource,
 						Repo:     source.KubernetesSource,
 						Version:  version,
@@ -131,7 +133,7 @@ func NewSource(src string, opts *provider.Options) (provider.ISource, error) { /
 			} else if parts[1] == source.HelmSource {
 				return &source.Helm{
 					GitHub: source.GitHub{
-						Provider: provider.Provider{Options: opts, OSConfig: detectedOS},
+						Provider: providerConfig,
 						Owner:    source.HelmSource,
 						Repo:     source.HelmSource,
 						Version:  version,
@@ -141,7 +143,7 @@ func NewSource(src string, opts *provider.Options) (provider.ISource, error) { /
 			}
 
 			return &source.GitHub{
-				Provider: provider.Provider{Options: opts, OSConfig: detectedOS},
+				Provider: providerConfig,
 				Owner:    parts[1],
 				Repo:     parts[2],
 				Version:  version,
@@ -151,7 +153,7 @@ func NewSource(src string, opts *provider.Options) (provider.ISource, error) { /
 			repo := parts[len(parts)-1]
 
 			return &source.GitLab{
-				Provider: provider.Provider{Options: opts, OSConfig: detectedOS},
+				Provider: providerConfig,
 				Owner:    owner,
 				Repo:     repo,
 				Version:  version,
@@ -165,7 +167,7 @@ func NewSource(src string, opts *provider.Options) (provider.ISource, error) { /
 					repo := parts[len(parts)-1]
 
 					s := &source.GitLab{
-						Provider: provider.Provider{Options: opts, OSConfig: detectedOS},
+						Provider: providerConfig,
 						BaseURL:  p.BaseURL,
 						Owner:    owner,
 						Repo:     repo,

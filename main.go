@@ -4,11 +4,11 @@ import (
 	"os"
 	"path"
 
-	"github.com/apex/log"
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v2"
 
 	"github.com/ekristen/distillery/pkg/common"
+
 	"github.com/ekristen/distillery/pkg/signals"
 
 	_ "github.com/ekristen/distillery/pkg/commands/clean"
@@ -22,10 +22,13 @@ import (
 )
 
 func main() {
+	ctx := signals.SetupSignalContext()
+
 	defer func() {
 		if r := recover(); r != nil {
-			// log panics forces exit
-			if _, ok := r.(*logrus.Entry); ok {
+			// Log panics and exit
+			if err, ok := r.(error); ok {
+				log.Error().Bool("fail", true).Err(err).Msgf("fatal error: %s", err.Error())
 				os.Exit(1)
 			}
 			panic(r)
@@ -49,13 +52,12 @@ func main() {
 
 	app.Commands = common.GetCommands()
 	app.CommandNotFound = func(context *cli.Context, command string) {
-		log.Fatalf("command %s not found.", command)
+		log.Fatal().Bool("warn", true).Msgf("command %s not found", command)
 	}
 
 	app.EnableBashCompletion = true
 
-	ctx := signals.SetupSignalContext()
 	if err := app.RunContext(ctx, os.Args); err != nil {
-		log.Error(err.Error())
+		log.Error().Bool("fail", true).Err(err).Msgf("command failed: %s", err.Error())
 	}
 }
