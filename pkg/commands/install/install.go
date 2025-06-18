@@ -109,7 +109,7 @@ func Execute(c *cli.Context) error { //nolint:funlen
 		}
 
 		if installedVersion != nil && installedVersion.Version == src.GetVersion() {
-			logger.Warn().Msgf("version %s is already installed (reinstall with --force)", src.GetVersion())
+			logger.Warn().Bool("ok", true).Msgf("version %s is already installed (reinstall with --force)", src.GetVersion())
 			return nil
 		}
 	}
