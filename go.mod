@@ -6,7 +6,6 @@ toolchain go1.24.4
 
 require (
 	github.com/ProtonMail/gopenpgp/v2 v2.9.0
-	github.com/apex/log v1.9.0
 	github.com/dsnet/compress v0.0.2-0.20230904184137-39efe44ab707
 	github.com/gabriel-vasile/mimetype v1.4.9
 	github.com/google/go-github/v72 v72.0.0
@@ -16,7 +15,6 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/pterm/pterm v0.12.79
 	github.com/rs/zerolog v1.34.0
-	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
 	github.com/ulikunitz/xz v0.5.12
 	github.com/urfave/cli/v2 v2.27.7

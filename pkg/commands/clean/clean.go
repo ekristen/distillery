@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/apex/log"
+	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v2"
 
 	"github.com/ekristen/distillery/pkg/common"
@@ -25,7 +25,7 @@ func Execute(c *cli.Context) error { //nolint:gocyclo
 	bins := make([]string, 0)
 
 	if !c.Bool("no-dry-run") {
-		log.Warn("dry-run enabled, no changes will be made, use --no-dry-run to perform actions")
+		log.Warn().Msg("dry-run enabled, no changes will be made, use --no-dry-run to perform actions")
 	}
 
 	_ = filepath.Walk(binDir, func(path string, info os.FileInfo, err error) error {
@@ -71,7 +71,7 @@ func Execute(c *cli.Context) error { //nolint:gocyclo
 		return nil
 	})
 
-	log.Warn("orphaned binaries:")
+	log.Warn().Msg("orphaned binaries:")
 	for _, path := range bins {
 		found := false
 
@@ -86,7 +86,7 @@ func Execute(c *cli.Context) error { //nolint:gocyclo
 			continue
 		}
 
-		log.Warnf("  - %s", path)
+		log.Warn().Msgf("  - %s", path)
 
 		if c.Bool("no-dry-run") {
 			if err := os.Remove(path); err != nil {
@@ -107,12 +107,19 @@ func Flags() []cli.Flag {
 	}
 }
 
+func Before(c *cli.Context) error {
+	_ = c.Set("no-spinner", "true")
+	_ = c.Set("log-caller", "false")
+	return common.Before(c)
+}
+
 func init() {
 	cmd := &cli.Command{
 		Name:        "clean",
 		Usage:       "clean",
 		Description: `cleanup`,
 		Flags:       append(Flags(), common.Flags()...),
+		Before:      Before,
 		Action:      Execute,
 	}
 

@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 
 	"github.com/ekristen/distillery/pkg/common"
 )
@@ -45,7 +45,7 @@ func (c *Client) GetToken() string {
 
 func (c *Client) ListReleases(ctx context.Context, slug string) ([]*Release, error) {
 	releaseURL := fmt.Sprintf("%s/projects/%s/releases", c.baseURL, url.QueryEscape(slug))
-	logrus.Tracef("GET %s", releaseURL)
+	log.Trace().Msgf("GET %s", releaseURL)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", releaseURL, http.NoBody)
 	if err != nil {
@@ -74,7 +74,7 @@ func (c *Client) ListReleases(ctx context.Context, slug string) ([]*Release, err
 
 func (c *Client) GetLatestRelease(ctx context.Context, slug string) (*Release, error) {
 	releaseURL := fmt.Sprintf("%s/projects/%s/releases?per_page=1", c.baseURL, url.QueryEscape(slug))
-	logrus.Tracef("GET %s", releaseURL)
+	log.Trace().Msgf("GET %s", releaseURL)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", releaseURL, http.NoBody)
 	if err != nil {
@@ -103,7 +103,7 @@ func (c *Client) GetLatestRelease(ctx context.Context, slug string) (*Release, e
 
 func (c *Client) GetRelease(ctx context.Context, slug, version string) (*Release, error) {
 	releaseURL := fmt.Sprintf("%s/projects/%s/releases/%s", c.baseURL, url.QueryEscape(slug), url.QueryEscape(version))
-	logrus.Tracef("GET %s", releaseURL)
+	log.Trace().Msgf("GET %s", releaseURL)
 	fmt.Println(releaseURL)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", releaseURL, http.NoBody)
