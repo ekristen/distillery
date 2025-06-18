@@ -5,14 +5,8 @@ import (
 
 	"github.com/h2non/filetype/matchers"
 	"github.com/h2non/filetype/types"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
-
-func init() {
-	logrus.SetLevel(logrus.TraceLevel)
-	logrus.SetReportCaller(true)
-}
 
 func TestScore(t *testing.T) {
 	t.Parallel()

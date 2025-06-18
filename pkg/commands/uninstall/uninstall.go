@@ -7,8 +7,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/apex/log"
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v2"
 
 	"github.com/ekristen/distillery/pkg/common"
@@ -24,10 +23,15 @@ func Execute(c *cli.Context) error {
 		return err
 	}
 
+	appName := c.Args().First()
+
+	logger := log.With().Str("app", appName).Logger()
+
 	src, err := install.NewSource(c.Args().First(), &provider.Options{
 		OS:     c.String("os"),
 		Arch:   c.String("arch"),
 		Config: cfg,
+		Logger: logger,
 		Settings: map[string]interface{}{
 			"version":              c.String("version"),
 			"github-token":         c.String("github-token"),
@@ -43,11 +47,11 @@ func Execute(c *cli.Context) error {
 
 	path := filepath.Join(cfg.GetOptPath(), src.GetSource(), src.GetOwner(), src.GetRepo())
 
-	logrus.Trace("path: ", path)
+	log.Trace().Msgf("path: %s", path)
 
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
-			log.Warnf("%s does not appear to be installed", c.Args().First())
+			log.Warn().Msgf("%s does not appear to be installed", c.Args().First())
 			return nil
 		}
 
@@ -55,7 +59,7 @@ func Execute(c *cli.Context) error {
 	}
 
 	if !c.Bool("no-dry-run") {
-		log.Warn("dry-run enabled, no changes will be made, use --no-dry-run to perform actions")
+		log.Warn().Msg("dry-run enabled, no changes will be made, use --no-dry-run to perform actions")
 	}
 
 	var files []string
@@ -79,7 +83,7 @@ func Execute(c *cli.Context) error {
 	}
 
 	for _, file := range files {
-		log.Warnf("%s - %s", msg, file)
+		log.Warn().Msgf("%s - %s", msg, file)
 
 		if c.Bool("no-dry-run") {
 			if err := os.Remove(file); err != nil {
@@ -88,20 +92,23 @@ func Execute(c *cli.Context) error {
 		}
 	}
 
-	log.Warnf("%s - %s", msg, path)
+	log.Warn().Msgf("%s - %s", msg, path)
 
 	if c.Bool("no-dry-run") {
 		if err := os.RemoveAll(path); err != nil {
 			return err
 		}
 
-		log.Info("uninstall complete")
+		log.Info().Msg("uninstall complete")
 	}
 
 	return nil
 }
 
 func Before(c *cli.Context) error {
+	_ = c.Set("no-spinner", "true")
+	_ = c.Set("log-caller", "false")
+
 	if c.NArg() == 0 {
 		return fmt.Errorf("no binary specified")
 	}

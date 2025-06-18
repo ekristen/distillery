@@ -17,7 +17,7 @@ func ParsePublicKey(pemEncodedPubKey []byte) (*ecdsa.PublicKey, error) {
 
 	var ecdsaPub *ecdsa.PublicKey
 
-	if block.Type == "PUBLIC KEY" {
+	if block.Type == "PUBLIC KEY" { //nolint:staticcheck
 		pub, err := x509.ParsePKIXPublicKey(block.Bytes)
 		if err != nil {
 			return nil, err
