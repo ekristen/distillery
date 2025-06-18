@@ -18,7 +18,7 @@ import (
 	"github.com/ekristen/distillery/pkg/provider"
 )
 
-func Execute(c *cli.Context) error { //nolint:gocyclo,funlen
+func Execute(c *cli.Context) error { //nolint:funlen
 	startTime := time.Now().UTC()
 
 	appName := c.Args().First()
@@ -85,11 +85,6 @@ func Execute(c *cli.Context) error { //nolint:gocyclo,funlen
 	if err != nil {
 		logger.Error().Msgf("failed to create source: %s", err.Error())
 		return err
-	}
-
-	var userFlags []string
-	if c.Bool("include-pre-releases") {
-		userFlags = append(userFlags, "including pre-releases")
 	}
 
 	logger.Info().Msg("checking configuration")
@@ -166,7 +161,7 @@ func Before(c *cli.Context) error {
 	return common.Before(c)
 }
 
-func Flags() []cli.Flag {
+func Flags() []cli.Flag { //nolint:funlen
 	cfgDir, _ := os.UserConfigDir()
 	homeDir, _ := os.UserHomeDir()
 	if runtime.GOOS == "darwin" {

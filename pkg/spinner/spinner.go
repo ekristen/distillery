@@ -83,7 +83,7 @@ func (sw *SpinnerWriter) WriteLevel(level zerolog.Level, p []byte) (n int, err e
 		sw.active = false
 		sw.prevMsgLen = 0
 	case event["done"] == true:
-		sw.spinner.Stop()
+		_ = sw.spinner.Stop()
 		sw.active = false
 		sw.prevMsgLen = 0
 	}
