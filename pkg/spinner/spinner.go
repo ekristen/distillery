@@ -82,6 +82,17 @@ func (sw *SpinnerWriter) WriteLevel(level zerolog.Level, p []byte) (n int, err e
 		sw.spinner.Warning(fullMsg)
 		sw.active = false
 		sw.prevMsgLen = 0
+	case event["ok"] == true:
+		sw.spinner.InfoPrinter = &pterm.PrefixPrinter{
+			MessageStyle: &pterm.Style{pterm.FgLightGreen},
+			Prefix: pterm.Prefix{
+				Style: &pterm.Style{pterm.FgBlack, pterm.BgLightGreen},
+				Text:  "OK",
+			},
+		}
+		sw.spinner.Info(fullMsg)
+		sw.active = false
+		sw.prevMsgLen = 0
 	case event["done"] == true:
 		_ = sw.spinner.Stop()
 		sw.active = false

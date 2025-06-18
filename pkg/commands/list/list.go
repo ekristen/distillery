@@ -2,9 +2,11 @@ package list
 
 import (
 	"os"
+	"sort"
+	"strconv"
 	"strings"
 
-	"github.com/rs/zerolog/log"
+	"github.com/pterm/pterm"
 	"github.com/urfave/cli/v2"
 
 	"github.com/ekristen/distillery/pkg/common"
@@ -20,10 +22,25 @@ func Execute(c *cli.Context) error {
 
 	inv := inventory.New(os.DirFS(cfg.GetPath()), cfg.GetPath(), cfg.GetOptPath(), cfg)
 
+	tableData := pterm.TableData{{"Name", "Versions"}}
 	for _, key := range inv.GetBinsSortedKeys() {
 		bin := inv.Bins[key]
-		log.Info().Msgf("%s (versions: %s)", key, strings.Join(bin.ListVersions(), ", "))
+		versions := bin.ListVersions()
+		// Sort lexicographically
+		sort.Strings(versions)
+		// Reverse to get latest first
+		for i, j := 0, len(versions)-1; i < j; i, j = i+1, j-1 {
+			versions[i], versions[j] = versions[j], versions[i]
+		}
+		displayVersions := versions
+		extra := ""
+		if len(versions) > 3 {
+			displayVersions = versions[:3]
+			extra = " (+" + strconv.Itoa(len(versions)-3) + ")"
+		}
+		tableData = append(tableData, []string{key, strings.Join(displayVersions, ", ") + extra})
 	}
+	pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
 
 	return nil
 }
