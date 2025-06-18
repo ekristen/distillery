@@ -302,7 +302,6 @@ func (p *Provider) discoverChecksum() error {
 }
 
 func (p *Provider) determineChecksumSigTypes() error {
-
 	p.ChecksumType = "none"
 	if p.Checksum != nil {
 		p.ChecksumType = p.Checksum.GetChecksumType()
@@ -332,7 +331,6 @@ func (p *Provider) determineChecksumSigTypes() error {
 }
 
 func (p *Provider) discoverSignature(version string) error { //nolint:gocyclo
-
 	fileScoring := map[asset.Type][]string{}
 	fileScored := map[asset.Type][]score.Sorted{}
 
@@ -350,12 +348,13 @@ func (p *Provider) discoverSignature(version string) error { //nolint:gocyclo
 	}
 
 	var names []string
-	if p.SignatureType == SignatureTypeChecksum {
+	switch p.SignatureType {
+	case SignatureTypeChecksum:
 		names = append(names, p.Checksum.GetName())
 		for _, ext := range []string{"sig", "asc"} {
 			names = append(names, fmt.Sprintf("%s.%s", p.Checksum.GetName(), ext))
 		}
-	} else if p.SignatureType == SignatureTypeFile {
+	case SignatureTypeFile:
 		names = append(names, p.Binary.GetName())
 		for _, ext := range []string{"sig", "asc"} {
 			names = append(names, fmt.Sprintf("%s.%s", p.Binary.GetName(), ext))
@@ -425,7 +424,6 @@ func (p *Provider) discoverSignature(version string) error { //nolint:gocyclo
 
 // TODO: refactor into smaller functions for testing
 func (p *Provider) discoverMatch() error { //nolint:gocyclo
-
 	// Match keys to signatures.
 	for _, a := range p.Assets {
 		if a.GetType() != asset.Signature {
@@ -594,12 +592,13 @@ func (p *Provider) verifySignature() error {
 	}
 
 	if p.Signature == nil {
-		if p.Options.Config.Settings.SignatureMissing == common.Ignore {
+		switch p.Options.Config.Settings.SignatureMissing {
+		case common.Ignore:
 			return nil
-		} else if p.Options.Config.Settings.SignatureMissing == common.Warn {
+		case common.Warn:
 			p.Logger.Warn().Msg("skipping signature verification (no signature)")
 			return nil
-		} else if p.Options.Config.Settings.SignatureMissing == common.Error {
+		case common.Error:
 			return errors.New("signature verification failed (no signature)")
 		}
 	}
@@ -757,12 +756,13 @@ func (p *Provider) verifyChecksum() error {
 	}
 
 	if p.Checksum == nil {
-		if p.Options.Config.Settings.ChecksumMissing == common.Ignore {
+		switch p.Options.Config.Settings.ChecksumMissing {
+		case common.Ignore:
 			return nil
-		} else if p.Options.Config.Settings.ChecksumMissing == common.Warn {
+		case common.Warn:
 			p.Logger.Warn().Msg("skipping checksum verification (no checksum)")
 			return nil
-		} else if p.Options.Config.Settings.ChecksumMissing == common.Error {
+		case common.Error:
 			return errors.New("checksum verification failed (no checksum)")
 		}
 	}
@@ -774,14 +774,15 @@ func (p *Provider) verifyChecksum() error {
 		p.Binary.GetFilePath(), p.Checksum.GetFilePath())
 	if err != nil {
 		if errors.Is(err, checksum.ErrUnsupportedHashLength) {
-			if p.Options.Config.Settings.ChecksumUnknown == common.Warn {
+			switch p.Options.Config.Settings.ChecksumUnknown {
+			case common.Warn:
 				p.Logger.Warn().Msg("skipping checksum verification (unsupported hash length)")
-				return nil
-			} else if p.Options.Config.Settings.ChecksumUnknown == common.Error {
+			case common.Error:
 				return err
-			} else if p.Options.Config.Settings.ChecksumUnknown == common.Ignore {
-				return nil
+			default:
 			}
+
+			return nil
 		} else {
 			return err
 		}

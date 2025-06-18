@@ -55,13 +55,13 @@ func NewSource(src string, opts *provider.Options) (provider.ISource, error) { /
 
 	if len(parts) == 2 {
 		// could be GitHub or Homebrew or Hashicorp
-		if parts[0] == source.HomebrewSource {
+		if parts[0] == source.HomebrewSource { //nolint:staticcheck
 			return &source.Homebrew{
 				Provider: providerConfig,
 				Formula:  parts[1],
 				Version:  version,
 			}, nil
-		} else if parts[0] == source.HashicorpSource {
+		} else if parts[0] == source.HashicorpSource { //nolint:dupl
 			return &source.Hashicorp{
 				Provider: providerConfig,
 				Owner:    parts[1],
@@ -113,7 +113,7 @@ func NewSource(src string, opts *provider.Options) (provider.ISource, error) { /
 		return nil, fmt.Errorf("invalid install source, expect alias	 or format of owner/repo or owner/repo@version")
 	} else if len(parts) >= 3 {
 		if strings.HasPrefix(parts[0], source.GitHubSource) {
-			if parts[1] == source.HashicorpSource {
+			if parts[1] == source.HashicorpSource { //nolint:dupl,staticcheck
 				return &source.Hashicorp{
 					Provider: providerConfig,
 					Owner:    parts[1],
