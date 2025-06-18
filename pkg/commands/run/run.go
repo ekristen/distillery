@@ -2,12 +2,14 @@ package run
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
 
-	"github.com/apex/log"
 	"github.com/urfave/cli/v2"
+
+	"github.com/rs/zerolog"
 
 	"github.com/ekristen/distillery/pkg/common"
 	"github.com/ekristen/distillery/pkg/config"
@@ -34,7 +36,7 @@ func discover(cwd string) (string, error) {
 	return "", errors.New("no Distfile found in current directory or $HOME")
 }
 
-func Execute(c *cli.Context) error { //nolint:gocyclo
+func Execute(c *cli.Context) error { //nolint:gocyclo,funlen
 	var df string
 	if c.Args().Len() == 0 {
 		// Check current working directory
@@ -72,9 +74,11 @@ func Execute(c *cli.Context) error { //nolint:gocyclo
 
 	parallel := c.Int("parallel")
 
+	// Set up logger (could be passed in via context or struct in a larger refactor)
+	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
+
 	if parallel > 1 {
-		log.Warn("experimental feature: you are using parallel installs, it might not work as expected")
-		log.Warn("experimental feature: all logging output will be mixed together")
+		logger.Info().Msgf("running parallel installs with concurrency: %d", parallel)
 	}
 
 	var wg sync.WaitGroup
@@ -82,28 +86,33 @@ func Execute(c *cli.Context) error { //nolint:gocyclo
 
 	sem := make(chan struct{}, parallel)
 
-	for _, command := range commands {
+	for i, command := range commands {
 		if command.Action == "install" {
 			wg.Add(1)
-			go func(command distfile.Command) {
+			go func(_ int, command distfile.Command) {
 				defer wg.Done()
 				sem <- struct{}{}
 				defer func() { <-sem }()
+
+				installText := fmt.Sprintf("Setting up %s", command.Args[0])
+				logger.Info().Msg(installText)
 
 				ctx := cli.NewContext(c.App, nil, nil)
 				args := append([]string{"install"}, command.Args...)
 				if installErr := instCmd.Run(ctx, args...); installErr != nil {
 					errCh <- installErr
-					log.WithError(installErr).Error("error running install command")
+					logger.Error().Msgf("Failed %s: %s", command.Args[0], installErr.Error())
+				} else {
+					logger.Info().Msgf("Completed %s", command.Args[0])
 				}
-			}(command)
+			}(i, command)
 		} else {
 			// this is for any other action that's detected that we don't support right now
 			wg.Done()
 		}
 
 		select {
-		case <-c.Context.Done():
+		case <-c.Context.Done(): //nolint:staticcheck
 			return nil
 		default:
 			continue

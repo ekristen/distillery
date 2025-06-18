@@ -8,8 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/apex/log"
 	"github.com/urfave/cli/v2"
+
+	"github.com/rs/zerolog/log"
 
 	"github.com/ekristen/distillery/pkg/common"
 	"github.com/ekristen/distillery/pkg/config"
@@ -17,15 +18,23 @@ import (
 	"github.com/ekristen/distillery/pkg/provider"
 )
 
-func Execute(c *cli.Context) error { //nolint:gocyclo,funlen
-	start := time.Now().UTC()
+func Execute(c *cli.Context) error { //nolint:funlen
+	startTime := time.Now().UTC()
+
+	appName := c.Args().First()
+
+	logger := log.With().Str("app", appName).Logger()
+
+	logger.Info().Msg("starting installation")
 
 	cfg, err := config.New(c.String("config"))
 	if err != nil {
+		logger.Error().Msg("failed to load configuration")
 		return err
 	}
 
 	if err := cfg.MkdirAll(); err != nil {
+		logger.Error().Msg("failed to create directories")
 		return err
 	}
 
@@ -39,7 +48,7 @@ func Execute(c *cli.Context) error { //nolint:gocyclo,funlen
 		version := alias.Version
 		if len(nameParts) > 1 {
 			if version != "latest" {
-				log.Warn("version specified via cli and alias, ignoring alias version")
+				logger.Warn().Msg("version specified via cli and alias, ignoring alias version")
 			}
 			version = nameParts[1]
 		}
@@ -50,13 +59,15 @@ func Execute(c *cli.Context) error { //nolint:gocyclo,funlen
 	}
 
 	if c.Bool("use-dist-cache") {
-		log.Warn("[EXPERIMENTAL FEATURE] using distillery pass-through cache, this may not work as expected")
+		logger.Warn().Msg("[EXPERIMENTAL FEATURE] using distillery pass-through cache, this may not work as expected")
 	}
+	logger.Info().Msg("preparing source")
 
 	src, err := NewSource(name, &provider.Options{
 		OS:     c.String("os"),
 		Arch:   c.String("arch"),
 		Config: cfg,
+		Logger: logger,
 		Settings: map[string]interface{}{
 			"version":              c.String("version"),
 			"github-token":         c.String("github-token"),
@@ -69,38 +80,24 @@ func Execute(c *cli.Context) error { //nolint:gocyclo,funlen
 			"dist-cache-url":       c.String("dist-cache-url"),
 		},
 	})
+
 	if err != nil {
+		logger.Error().Msgf("failed to create source: %s", err.Error())
 		return err
 	}
 
-	var userFlags []string
-	if c.Bool("include-pre-releases") {
-		userFlags = append(userFlags, "including pre-releases")
-	}
-
-	log.Infof("distillery/%s", common.AppVersion.Summary)
-	for _, flag := range userFlags {
-		log.Infof("   flag: %s", flag)
-	}
-
-	log.Infof("source: %s", src.GetSource())
-	log.Infof("app: %s", src.GetApp())
-	log.Infof("os: %s", c.String("os"))
-	log.Infof("arch: %s", c.String("arch"))
+	logger.Info().Msg("checking configuration")
 
 	if c.String("version") == common.Latest {
-		log.Infof("determining latest version")
-	} else {
-		log.Infof("version: %s", c.String("version"))
+		logger.Info().Msg("resolving latest version")
 	}
 
 	if err := src.PreRun(c.Context); err != nil {
+		logger.Error().Err(err).Msg("failed to prepare installation")
 		return err
 	}
 
-	if c.String("version") == common.Latest {
-		log.Infof("version: %s", src.GetVersion())
-	}
+	logger.Info().Err(err).Msgf("downloading version %s", src.GetVersion())
 
 	if !c.Bool("force") {
 		var installedVersion *inventory.Version
@@ -112,19 +109,22 @@ func Execute(c *cli.Context) error { //nolint:gocyclo,funlen
 		}
 
 		if installedVersion != nil && installedVersion.Version == src.GetVersion() {
-			log.Warnf("already installed")
-			log.Infof("reinstall with --force (%s)", time.Since(start))
+			logger.Warn().Msgf("version %s is already installed (reinstall with --force)", src.GetVersion())
 			return nil
 		}
 	}
 
+	logger.Info().Msgf("installing version %s", src.GetVersion())
+
 	if err := src.Run(c.Context); err != nil {
+		logger.Error().Err(err).Msg("installation failed")
 		return err
 	}
 
-	elapsed := time.Since(start)
+	endTime := time.Now().UTC()
+	elapsed := endTime.Sub(startTime)
 
-	log.Infof("installation complete in %s", elapsed)
+	logger.Info().Bool("success", true).Msgf("successfully installed version %s in %s", src.GetVersion(), elapsed)
 
 	return nil
 }
@@ -160,7 +160,7 @@ func Before(c *cli.Context) error {
 	return common.Before(c)
 }
 
-func Flags() []cli.Flag {
+func Flags() []cli.Flag { //nolint:funlen
 	cfgDir, _ := os.UserConfigDir()
 	homeDir, _ := os.UserHomeDir()
 	if runtime.GOOS == "darwin" {

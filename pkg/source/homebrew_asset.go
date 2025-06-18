@@ -10,7 +10,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 
 	"github.com/ekristen/distillery/pkg/asset"
 	"github.com/ekristen/distillery/pkg/clients/homebrew"
@@ -41,7 +41,6 @@ func (g *GHCRAuth) Bearer() string {
 
 func (a *HomebrewAsset) getAuthToken() (*GHCRAuth, error) {
 	// https://ghcr.io/token",service="ghcr.io",scope="repository:homebrew/core/ffmpeg:pull"
-
 	req, err := http.NewRequestWithContext(context.TODO(), "GET", "https://ghcr.io/token", http.NoBody)
 	if err != nil {
 		return nil, err
@@ -52,7 +51,7 @@ func (a *HomebrewAsset) getAuthToken() (*GHCRAuth, error) {
 	q.Add("scope", fmt.Sprintf("repository:homebrew/core/%s:%s", a.Homebrew.GetRepo(), "pull"))
 	req.URL.RawQuery = q.Encode()
 
-	logrus.Tracef("request: %s", req.URL.String())
+	log.Trace().Msgf("request: %s", req.URL.String())
 
 	var t *GHCRAuth
 
@@ -84,7 +83,7 @@ func (a *HomebrewAsset) Download(ctx context.Context) error {
 	}
 
 	if stats != nil {
-		logrus.Debug("file already downloaded")
+		log.Debug().Msg("file already downloaded")
 		return nil
 	}
 
@@ -94,7 +93,6 @@ func (a *HomebrewAsset) Download(ctx context.Context) error {
 	}
 
 	// TODO: lookup manifest to determine how the file is stored ...
-
 	req, err := http.NewRequestWithContext(context.TODO(), "GET", a.FileVariant.URL, http.NoBody)
 	if err != nil {
 		return err
@@ -132,12 +130,12 @@ func (a *HomebrewAsset) Download(ctx context.Context) error {
 		return err
 	}
 
-	logrus.Tracef("hash: %x", hasher.Sum(nil))
+	log.Trace().Msgf("hash: %x", hasher.Sum(nil))
 
 	_ = os.WriteFile(assetFileHash, []byte(string(hasher.Sum(nil))), 0600)
 	a.Hash = string(hasher.Sum(nil))
 
-	logrus.Tracef("Downloaded asset to: %s", tmpFile.Name())
+	log.Trace().Msgf("Downloaded asset to: %s", tmpFile.Name())
 
 	return nil
 }
