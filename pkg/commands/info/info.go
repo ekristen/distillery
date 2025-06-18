@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/apex/log"
+	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v2"
 
 	"github.com/ekristen/distillery/pkg/common"
@@ -20,29 +20,29 @@ func Execute(c *cli.Context) error {
 		return err
 	}
 
-	log.Info("version information")
-	log.Infof("  distillery/%s", common.AppVersion.Summary)
+	log.Info().Msg("version information")
+	log.Info().Msgf("  distillery/%s", common.AppVersion.Summary)
 	fmt.Println("")
-	log.Infof("system information")
-	log.Infof("     os: %s", runtime.GOOS)
-	log.Infof("   arch: %s", runtime.GOARCH)
+	log.Info().Msg("system information")
+	log.Info().Msgf("     os: %s", runtime.GOOS)
+	log.Info().Msgf("   arch: %s", runtime.GOARCH)
 	fmt.Println("")
-	log.Infof("configuration")
-	log.Infof("   home: %s", cfg.Path)
-	log.Infof("    bin: %s", cfg.BinPath)
-	log.Infof("    opt: %s", filepath.FromSlash(cfg.GetOptPath()))
-	log.Infof("  cache: %s", filepath.FromSlash(cfg.GetCachePath()))
+	log.Info().Msg("configuration")
+	log.Info().Msgf("   home: %s", cfg.Path)
+	log.Info().Msgf("    bin: %s", cfg.BinPath)
+	log.Info().Msgf("    opt: %s", filepath.FromSlash(cfg.GetOptPath()))
+	log.Info().Msgf("  cache: %s", filepath.FromSlash(cfg.GetCachePath()))
 	fmt.Println("")
-	log.Warnf("To cleanup all of distillery, remove the following directories:")
-	log.Warnf("  - %s", filepath.FromSlash(cfg.GetCachePath()))
-	log.Warnf("  - %s", cfg.BinPath)
-	log.Warnf("  - %s", filepath.FromSlash(cfg.GetOptPath()))
+	log.Warn().Msg("To cleanup all of distillery, remove the following directories:")
+	log.Warn().Msgf("  - %s", filepath.FromSlash(cfg.GetCachePath()))
+	log.Warn().Msgf("  - %s", cfg.BinPath)
+	log.Warn().Msgf("  - %s", filepath.FromSlash(cfg.GetOptPath()))
 
 	path := os.Getenv("PATH")
 	if !strings.Contains(path, cfg.BinPath) {
 		fmt.Println("")
-		log.Warnf("Problem: distillery will not work correctly")
-		log.Warnf("  - %s is not in your PATH", cfg.BinPath)
+		log.Warn().Msg("Problem: distillery will not work correctly")
+		log.Warn().Msgf("  - %s is not in your PATH", cfg.BinPath)
 		fmt.Println("")
 	}
 
@@ -53,12 +53,20 @@ func Flags() []cli.Flag {
 	return []cli.Flag{}
 }
 
+func Before(c *cli.Context) error {
+	_ = c.Set("no-spinner", "true")
+	_ = c.Set("log-caller", "false")
+
+	return common.Before(c)
+}
+
 func init() {
 	cmd := &cli.Command{
 		Name:        "info",
 		Usage:       "info",
 		Description: `general information about distillery and the rendered configuration`,
 		Flags:       append(Flags(), common.Flags()...),
+		Before:      Before,
 		Action:      Execute,
 	}
 

@@ -4,7 +4,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/apex/log"
+	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v2"
 
 	"github.com/ekristen/distillery/pkg/common"
@@ -22,10 +22,17 @@ func Execute(c *cli.Context) error {
 
 	for _, key := range inv.GetBinsSortedKeys() {
 		bin := inv.Bins[key]
-		log.Infof("%s (versions: %s)", key, strings.Join(bin.ListVersions(), ", "))
+		log.Info().Msgf("%s (versions: %s)", key, strings.Join(bin.ListVersions(), ", "))
 	}
 
 	return nil
+}
+
+func Before(c *cli.Context) error {
+	_ = c.Set("no-spinner", "true")
+	_ = c.Set("log-caller", "false")
+
+	return common.Before(c)
 }
 
 func init() {
@@ -33,7 +40,7 @@ func init() {
 		Name:        "list",
 		Usage:       "list installed binaries and versions",
 		Description: `list installed binaries and versions`,
-		Before:      common.Before,
+		Before:      Before,
 		Flags:       common.Flags(),
 		Action:      Execute,
 	}

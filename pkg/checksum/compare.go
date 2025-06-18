@@ -13,7 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 )
 
 var ErrUnsupportedHashLength = fmt.Errorf("unsupported hash length")
@@ -35,7 +35,7 @@ func ComputeFileHash(filePath string, hashFunc func() hash.Hash) (string, error)
 
 // DetermineHashFunc determines the hash function to use based on the checksum file and the lengths of the hashes.
 func DetermineHashFunc(checksumFilePath string) (func() hash.Hash, error) {
-	log := logrus.WithField("handler", "determine-hash-func")
+	log := log.With().Str("handler", "determine-hash-func").Logger()
 
 	// Open the checksum file
 	checksumFile, err := os.Open(checksumFilePath)
@@ -51,7 +51,7 @@ func DetermineHashFunc(checksumFilePath string) (func() hash.Hash, error) {
 
 	// Determine the hash function based on the length of the hash
 	hashLength := len(strings.Fields(line)[0])
-	log.Trace("hashLength: ", hashLength)
+	log.Trace().Msgf("hashLength: ", hashLength)
 
 	switch hashLength {
 	case 32:
@@ -69,7 +69,7 @@ func DetermineHashFunc(checksumFilePath string) (func() hash.Hash, error) {
 
 // CompareHashWithChecksumFile compares the computed hash of a file with the hashes in a checksum file.
 func CompareHashWithChecksumFile(srcFilename, srcFilePath, checksumFilePath string) (bool, error) {
-	log := logrus.WithField("handler", "compare-hash-with-checksum-file")
+	log := log.With().Str("handler", "compare-hash-with-checksum-file").Logger()
 
 	hashFunc, err := DetermineHashFunc(checksumFilePath)
 	if err != nil {
@@ -108,8 +108,8 @@ func CompareHashWithChecksumFile(srcFilename, srcFilePath, checksumFilePath stri
 			return false, fmt.Errorf("unable to find hash and filename in checksum file")
 		}
 
-		log.Trace("fileHash: ", fileHash)
-		log.Trace("filename: ", hashFilename)
+		log.Trace().Msgf("fileHash: %s", fileHash)
+		log.Trace().Msgf("filename: %s", hashFilename)
 		// Rust does *(binary) for the binary name
 		hashFilename = strings.TrimPrefix(hashFilename, "*")
 

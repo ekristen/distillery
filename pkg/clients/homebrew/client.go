@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 
 	"github.com/ekristen/distillery/pkg/common"
 )
@@ -28,7 +28,7 @@ type Client struct {
 func (h *Client) GetFormula(ctx context.Context, formula string) (*Formula, error) {
 	url := fmt.Sprintf("https://formulae.brew.sh/api/formula/%s.json", formula)
 
-	logrus.Debugf("fetching formula: %s", url)
+	log.Debug().Msgf("fetching formula: %s", url)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, http.NoBody)
 	if err != nil {

@@ -9,7 +9,7 @@ import (
 
 	"github.com/urfave/cli/v2"
 
-	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 
 	"github.com/ekristen/distillery/pkg/common"
 	"github.com/ekristen/distillery/pkg/config"
@@ -74,11 +74,8 @@ func Execute(c *cli.Context) error { //nolint:gocyclo,funlen
 
 	parallel := c.Int("parallel")
 
-	// Set up logger (could be passed in via context or struct in a larger refactor)
-	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
-
 	if parallel > 1 {
-		logger.Info().Msgf("running parallel installs with concurrency: %d", parallel)
+		log.Info().Msgf("running parallel installs with concurrency: %d", parallel)
 	}
 
 	var wg sync.WaitGroup
@@ -93,6 +90,8 @@ func Execute(c *cli.Context) error { //nolint:gocyclo,funlen
 				defer wg.Done()
 				sem <- struct{}{}
 				defer func() { <-sem }()
+
+				logger := log.With().Str("app", command.Args[0]).Logger()
 
 				installText := fmt.Sprintf("Setting up %s", command.Args[0])
 				logger.Info().Msg(installText)
