@@ -106,6 +106,9 @@ func Execute(c *cli.Context) error {
 }
 
 func Before(c *cli.Context) error {
+	_ = c.Set("no-spinner", "true")
+	_ = c.Set("log-caller", "false")
+
 	if c.NArg() == 0 {
 		return fmt.Errorf("no binary specified")
 	}
