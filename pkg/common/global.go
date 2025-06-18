@@ -36,6 +36,14 @@ func Flags() []cli.Flag {
 			Value:    true,
 			Category: "Logging Options",
 		},
+		&cli.BoolFlag{
+			Name:     "no-spinner",
+			Usage:    "disable spinner",
+			EnvVars:  []string{"NO_SPINNER"},
+			Value:    false,
+			Category: "Logging Options",
+			Hidden:   true,
+		},
 	}
 
 	return globalFlags
@@ -52,14 +60,14 @@ func Before(c *cli.Context) error {
 	zerolog.SetGlobalLevel(level)
 
 	var outputWriter io.Writer
-	outputWriter = zerolog.ConsoleWriter{
-		Out: os.Stdout,
-	}
-	if zerolog.GlobalLevel() == zerolog.InfoLevel {
+	if zerolog.GlobalLevel() == zerolog.InfoLevel && c.Bool("no-spinner") == false {
 		outputWriter = spinner.NewWriter()
-	}
-	if c.String("log-format") == "json" || c.Bool("json") {
+	} else if c.String("log-format") == "json" || c.Bool("json") {
 		outputWriter = os.Stdout
+	} else {
+		outputWriter = zerolog.ConsoleWriter{
+			Out: os.Stdout,
+		}
 	}
 
 	if c.Bool("log-caller") {

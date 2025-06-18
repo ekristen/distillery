@@ -6,17 +6,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/ekristen/distillery/pkg/asset"
 	"github.com/ekristen/distillery/pkg/osconfig"
 	"github.com/ekristen/distillery/pkg/provider"
 )
-
-func init() {
-	logrus.SetLevel(logrus.TraceLevel)
-}
 
 type testSourceDiscoverTest struct {
 	name      string

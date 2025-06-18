@@ -8,7 +8,7 @@ import (
 
 	"github.com/gregjones/httpcache"
 	"github.com/gregjones/httpcache/diskcache"
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 
 	"github.com/ekristen/distillery/pkg/asset"
 	"github.com/ekristen/distillery/pkg/clients/homebrew"
@@ -55,7 +55,7 @@ func (s *Homebrew) sourceRun(ctx context.Context) error {
 
 	s.client = homebrew.NewClient(httpcache.NewTransport(diskcache.New(cacheFile)).Client())
 
-	logrus.Debug("fetching formula")
+	log.Debug().Msg("fetching formula")
 
 	formula, err := s.client.GetFormula(ctx, s.Formula)
 	if err != nil {
@@ -66,7 +66,7 @@ func (s *Homebrew) sourceRun(ctx context.Context) error {
 		s.Version = formula.Versions.Stable
 	} else {
 		// match major/minor
-		logrus.Debug("selecting version")
+		log.Debug().Msg("selecting version")
 	}
 
 	if len(formula.Dependencies) > 0 {

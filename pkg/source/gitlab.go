@@ -6,10 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/apex/log"
 	"github.com/gregjones/httpcache"
 	"github.com/gregjones/httpcache/diskcache"
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 
 	"github.com/ekristen/distillery/pkg/asset"
 	"github.com/ekristen/distillery/pkg/clients/gitlab"
@@ -114,7 +113,7 @@ func (s *GitLab) FindRelease(ctx context.Context) error {
 			if strings.Contains(err.Error(), "404 Not Found") {
 				gitlabToken := s.Options.Settings["gitlab-token"].(string)
 				if gitlabToken == "" {
-					log.Warn("no authentication token provided, a 404 error may be due to permissions")
+					log.Warn().Msg("no authentication token provided, a 404 error may be due to permissions")
 				}
 			}
 
@@ -122,10 +121,10 @@ func (s *GitLab) FindRelease(ctx context.Context) error {
 		}
 
 		for _, r := range releases {
-			logrus.
-				WithField("owner", s.GetOwner()).
-				WithField("repo", s.GetRepo()).
-				Tracef("found release: %s", r.TagName)
+			s.Logger.Trace().
+				Str("owner", s.GetOwner()).
+				Str("repo", s.GetRepo()).
+				Msgf("found release: %s", r.TagName)
 
 			if includePreReleases && r.UpcomingRelease {
 				s.Version = strings.TrimPrefix(r.TagName, "v")
