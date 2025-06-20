@@ -61,7 +61,7 @@ func Before(ctx context.Context, c *cli.Command) (context.Context, error) {
 	zerolog.SetGlobalLevel(level)
 
 	var outputWriter io.Writer
-	if zerolog.GlobalLevel() == zerolog.InfoLevel && c.Bool("no-spinner") == false {
+	if zerolog.GlobalLevel() == zerolog.InfoLevel && !c.Bool("no-spinner") {
 		outputWriter = spinner.NewWriter()
 	} else if c.String("log-format") == "json" || c.Bool("json") {
 		outputWriter = os.Stdout
