@@ -1,6 +1,7 @@
 package info
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -8,13 +9,13 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog/log"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
 	"github.com/ekristen/distillery/pkg/common"
 	"github.com/ekristen/distillery/pkg/config"
 )
 
-func Execute(c *cli.Context) error {
+func Execute(ctx context.Context, c *cli.Command) error {
 	cfg, err := config.New(c.String("config"))
 	if err != nil {
 		return err
@@ -53,11 +54,11 @@ func Flags() []cli.Flag {
 	return []cli.Flag{}
 }
 
-func Before(c *cli.Context) error {
+func Before(ctx context.Context, c *cli.Command) (context.Context, error) {
 	_ = c.Set("no-spinner", "true")
 	_ = c.Set("log-caller", "false")
 
-	return common.Before(c)
+	return common.Before(ctx, c)
 }
 
 func init() {

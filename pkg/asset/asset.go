@@ -316,7 +316,7 @@ func (a *Asset) determineInstallable() {
 		// Actual path to the downloaded/extracted file
 		fullPath := filepath.Join(a.TempDir, file.Name)
 
-		log.Debug().Msgf("checking file for installable: ", file.Name)
+		log.Debug().Msgf("checking file for installable: %s", file.Name)
 		m, err := mimetype.DetectFile(fullPath)
 		if err != nil {
 			log.Warn().Err(err).Msg("unable to determine mimetype")
