@@ -134,9 +134,9 @@ func removeExtension(filename string) string {
 }
 
 func calculateAccuracyScore(filename string, knownTerms []string) int {
-	log.Trace().Msgf("calculating accuracy score for filename: ", filename)
+	log.Trace().Msgf("calculating accuracy score for filename: %s", filename)
 	filename = removeExtension(filename) // Remove the file extension
-	log.Trace().Msgf("filename after removing extension: ", filename)
+	log.Trace().Msgf("filename after removing extension: %s", filename)
 
 	// Split the filename by dashes and dots to get individual terms
 	terms := strings.FieldsFunc(filename, func(r rune) bool {
@@ -164,13 +164,13 @@ func calculateAccuracyScore(filename string, knownTerms []string) int {
 	// Check each term in the filename
 	for _, term := range terms {
 		if filename == term {
-			log.Trace().Str("filename", filename).Msgf("adding point for term: ", term)
+			log.Trace().Str("filename", filename).Msgf("adding point for term: %s", term)
 			score += 10 // Add points for a direct match
 		} else if knownMap[term] {
-			log.Trace().Str("filename", filename).Msgf("adding point for term: ", term)
+			log.Trace().Str("filename", filename).Msgf("adding point for term: %s", term)
 			score += 2 // Add point for a correct match
 		} else {
-			log.Trace().Str("filename", filename).Msgf("subtracting point for term: ", term)
+			log.Trace().Str("filename", filename).Msgf("subtracting point for term: %s", term)
 			score += -5 // Add a larger penalty for an unknown term
 		}
 	}
