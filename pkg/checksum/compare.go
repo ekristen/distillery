@@ -51,7 +51,7 @@ func DetermineHashFunc(checksumFilePath string) (func() hash.Hash, error) {
 
 	// Determine the hash function based on the length of the hash
 	hashLength := len(strings.Fields(line)[0])
-	log.Trace().Msgf("hashLength: ", hashLength)
+	log.Trace().Msgf("hashLength: %d", hashLength)
 
 	switch hashLength {
 	case 32:
