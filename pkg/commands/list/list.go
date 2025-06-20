@@ -41,7 +41,8 @@ func Execute(ctx context.Context, c *cli.Command) error {
 		}
 		tableData = append(tableData, []string{key, strings.Join(displayVersions, ", ") + extra})
 	}
-	pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
+
+	_ = pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
 
 	return nil
 }

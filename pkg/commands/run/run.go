@@ -37,7 +37,7 @@ func discover(cwd string) (string, error) {
 	return "", errors.New("no Distfile found in current directory or $HOME")
 }
 
-func Execute(ctx context.Context, c *cli.Command) error { //nolint:gocyclo,funlen
+func Execute(ctx context.Context, c *cli.Command) error { //nolint:gocyclo
 	var df string
 	if c.Args().Len() == 0 {
 		// Check current working directory
@@ -111,7 +111,7 @@ func Execute(ctx context.Context, c *cli.Command) error { //nolint:gocyclo,funle
 		}
 
 		select {
-		case <-ctx.Done(): //nolint:staticcheck
+		case <-ctx.Done():
 			return nil
 		default:
 			continue
