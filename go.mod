@@ -12,7 +12,7 @@ require (
 	github.com/google/go-github/v72 v72.0.0
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
 	github.com/h2non/filetype v1.1.3
-	github.com/mholt/archives v0.1.2
+	github.com/mholt/archives v0.1.3
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
@@ -41,6 +41,7 @@ require (
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/mikelolasagasti/xz v1.0.1 // indirect
 	github.com/minio/minlz v1.0.1 // indirect
 	github.com/nwaples/rardecode/v2 v2.1.1 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
@@ -51,7 +52,6 @@ require (
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sorairolake/lzip-go v0.3.7 // indirect
 	github.com/spf13/afero v1.14.0 // indirect
-	github.com/therootcompany/xz v1.0.1 // indirect
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
 	go4.org v0.0.0-20230225012048-214862532bf5 // indirect
 	golang.org/x/crypto v0.37.0 // indirect
