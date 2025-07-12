@@ -250,7 +250,7 @@ func (a *Asset) Classify(name string) Type { //nolint:gocyclo
 	}
 
 	if aType == Unknown {
-		log.Trace().Msgf("classifying asset based on name: %s", name)
+		log.Trace().Str("app", a.GetName()).Msgf("classifying asset based on name: %s", name)
 		name = strings.ToLower(name)
 		if strings.HasSuffix(name, ".sha512") ||
 			strings.HasSuffix(name, ".sha512sum") ||
@@ -281,7 +281,7 @@ func (a *Asset) Classify(name string) Type { //nolint:gocyclo
 		}
 	}
 
-	log.Trace().Msgf("classified: %s - %s (type: %d)", name, aType, aType)
+	log.Trace().Str("app", a.GetName()).Msgf("classified: %s - %s (type: %d)", name, aType, aType)
 
 	return aType
 }
@@ -311,26 +311,26 @@ func (a *Asset) copyFile(srcFile, dstFile string) error {
 
 // determineInstallable determines if the file is installable or not based on the mimetype
 func (a *Asset) determineInstallable() {
-	log.Trace().Msgf("files to process: %d", len(a.Files))
+	log.Trace().Str("app", a.GetName()).Msgf("files to process: %d", len(a.Files))
 	for _, file := range a.Files {
 		// Actual path to the downloaded/extracted file
 		fullPath := filepath.Join(a.TempDir, file.Name)
 
-		log.Debug().Msgf("checking file for installable: %s", file.Name)
+		log.Debug().Str("app", a.GetName()).Msgf("checking file for installable: %s", file.Name)
 		m, err := mimetype.DetectFile(fullPath)
 		if err != nil {
-			log.Warn().Err(err).Msg("unable to determine mimetype")
+			log.Warn().Str("app", a.GetName()).Err(err).Msg("unable to determine mimetype")
 		}
 
-		log.Debug().Msgf("found mimetype: %s", m.String())
+		log.Debug().Str("app", a.GetName()).Msgf("found mimetype: %s", m.String())
 
 		if slices.Contains(ignoreFileExtensions, m.Extension()) {
-			log.Trace().Msgf("ignoring file: %s", file.Name)
+			log.Trace().Str("app", a.GetName()).Msgf("ignoring file: %s", file.Name)
 			continue
 		}
 
 		if slices.Contains(executableMimetypes, m.String()) {
-			log.Debug().Msgf("found installable executable: %s, %s, %s", file.Name, m.String(), m.Extension())
+			log.Debug().Str("app", a.GetName()).Msgf("found installable executable: %s, %s, %s", file.Name, m.String(), m.Extension())
 			file.Installable = true
 		}
 
@@ -347,7 +347,7 @@ func (a *Asset) determineInstallable() {
 func (a *Asset) determineELF(path string) bool {
 	f, err := os.Open(path)
 	if err != nil {
-		log.Trace().Err(err).Msgf("unable to open file for elf determination1: %s", path)
+		log.Trace().Str("app", a.GetName()).Err(err).Msgf("unable to open file for elf determination1: %s", path)
 		return false
 	}
 	defer f.Close()
@@ -355,7 +355,7 @@ func (a *Asset) determineELF(path string) bool {
 	magic := make([]byte, 4)
 	_, err = f.Read(magic)
 	if err != nil {
-		log.Trace().Err(err).Msg("error reading file")
+		log.Trace().Str("app", a.GetName()).Err(err).Msg("error reading file")
 		return false
 	}
 
@@ -378,12 +378,12 @@ func (a *Asset) Install(id, binDir, optDir string) error {
 
 	for _, file := range a.Files {
 		if !file.Installable {
-			log.Trace().Msgf("skipping file: %s", file.Name)
+			log.Trace().Str("app", a.GetName()).Msgf("skipping file: %s", file.Name)
 			continue
 		}
 
 		found = true
-		log.Debug().Msgf("installing file: %s", file.Name)
+		log.Debug().Str("app", a.GetName()).Msgf("installing file: %s", file.Name)
 
 		fullPath := filepath.Join(a.TempDir, file.Name)
 		dstFilename := filepath.Base(fullPath)
@@ -391,7 +391,7 @@ func (a *Asset) Install(id, binDir, optDir string) error {
 			dstFilename = file.Alias
 		}
 
-		log.Trace().Msgf("pre-dstFilename: %s", dstFilename)
+		log.Trace().Str("app", a.GetName()).Msgf("pre-dstFilename: %s", dstFilename)
 
 		// Strip the OS and Arch from the filename if it exists, this happens mostly when the binary is being
 		// uploaded directly instead of being encapsulated in a tarball or zip file
@@ -423,7 +423,7 @@ func (a *Asset) Install(id, binDir, optDir string) error {
 			dstFilename = fmt.Sprintf("%s.exe", dstFilename)
 		}
 
-		log.Trace().Msgf("post-dstFilename: %s", dstFilename)
+		log.Trace().Str("app", a.GetName()).Msgf("post-dstFilename: %s", dstFilename)
 
 		destBinaryName := dstFilename
 		// Note: copy to the opt dir for organization
@@ -434,7 +434,7 @@ func (a *Asset) Install(id, binDir, optDir string) error {
 
 		versionedBinFilename := fmt.Sprintf("%s@%s", defaultBinFilename, strings.TrimLeft(a.Version, "v"))
 
-		log.Debug().Msgf("copying executable: %s to %s", fullPath, destBinFilename)
+		log.Debug().Str("app", a.GetName()).Msgf("copying executable: %s to %s", fullPath, destBinFilename)
 		if err := a.copyFile(fullPath, destBinFilename); err != nil {
 			return err
 		}
@@ -443,8 +443,8 @@ func (a *Asset) Install(id, binDir, optDir string) error {
 		// TODO: check if symlink exists
 		// TODO: handle errors
 		if runtime.GOOS == a.OS && runtime.GOARCH == a.Arch {
-			log.Debug().Msgf("creating symlink: %s to %s", defaultBinFilename, destBinFilename)
-			log.Debug().Msgf("creating symlink: %s to %s", versionedBinFilename, destBinFilename)
+			log.Debug().Str("app", a.GetName()).Msgf("creating symlink: %s to %s", defaultBinFilename, destBinFilename)
+			log.Debug().Str("app", a.GetName()).Msgf("creating symlink: %s to %s", versionedBinFilename, destBinFilename)
 			_ = os.Remove(defaultBinFilename)
 			_ = os.Remove(versionedBinFilename)
 			_ = os.Symlink(destBinFilename, defaultBinFilename)
@@ -461,14 +461,14 @@ func (a *Asset) Install(id, binDir, optDir string) error {
 
 func (a *Asset) Cleanup() error {
 	if log.Logger.GetLevel() == zerolog.TraceLevel {
-		log.Trace().Msgf("walking tempdir")
+		log.Trace().Str("app", a.GetName()).Msgf("walking tempdir")
 		// walk the a.TempDir and log all the files
 		err := filepath.Walk(a.TempDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
 
-			log.Trace().Msgf("file: %s", path)
+			log.Trace().Str("app", a.GetName()).Msgf("file: %s", path)
 			return nil
 		})
 		if err != nil {
@@ -493,32 +493,32 @@ func (a *Asset) Extract() error {
 		return err
 	}
 
-	log.Debug().Msgf("opened and extracting file: %s", a.DownloadPath)
+	log.Debug().Str("app", a.GetName()).Msgf("opened and extracting file: %s", a.DownloadPath)
 
 	return a.doExtract(fileHandler)
 }
 
 func (a *Asset) doExtract(stream io.Reader) error {
-	log.Debug().Msg("identifying archive format")
+	log.Debug().Str("app", a.GetName()).Msg("identifying archive format")
 	format, stream, err := archives.Identify(context.TODO(), a.Extension, stream)
 	if err != nil && !errors.Is(err, archives.NoMatch) {
 		return err
 	}
 
 	if errors.Is(err, archives.NoMatch) && a.GetType() == Archive {
-		log.Warn().Msg("unable to identify archive format")
+		log.Warn().Str("app", a.GetName()).Msg("unable to identify archive format")
 		return errors.New("unable to identify or invalid archive format")
 	}
 
-	log.Debug().Msgf("identified archive format: %s", format)
+	log.Debug().Str("app", a.GetName()).Msgf("identified archive format: %s", format)
 
 	if ex, ok := format.(archives.Extractor); ok {
-		log.Debug().Msg("extracting archive")
+		log.Debug().Str("app", a.GetName()).Msg("extracting archive")
 		if err := ex.Extract(context.TODO(), stream, a.processArchive); err != nil {
 			return err
 		}
 	} else {
-		log.Debug().Msg("processing direct file")
+		log.Debug().Str("app", a.GetName()).Msg("processing direct file")
 		if err := a.processDirect(stream); err != nil {
 			return err
 		}
@@ -528,7 +528,7 @@ func (a *Asset) doExtract(stream io.Reader) error {
 }
 
 func (a *Asset) processDirect(in io.Reader) error {
-	log.Trace().Msgf("processing direct file")
+	log.Trace().Str("app", a.GetName()).Msgf("processing direct file")
 	outFile, err := os.Create(filepath.Join(a.TempDir, filepath.Base(a.DownloadPath)))
 	if err != nil {
 		return err
@@ -547,14 +547,14 @@ func (a *Asset) processArchive(ctx context.Context, f archives.FileInfo) error {
 	// do something with the file here; or, if you only want a specific file or directory,
 	// just return until you come across the desired f.NameInArchive value(s)
 	target := filepath.Join(a.TempDir, f.Name())
-	log.Trace().Msgf("zip > target %s", target)
+	log.Trace().Str("app", a.GetName()).Msgf("zip > target %s", target)
 
 	if f.Mode().IsDir() {
 		if _, err := os.Stat(target); err != nil {
 			if err := os.MkdirAll(target, 0755); err != nil {
 				return err
 			}
-			log.Trace().Msgf("tar > create directory %s", target)
+			log.Trace().Str("app", a.GetName()).Msgf("tar > create directory %s", target)
 		}
 
 		return nil
@@ -577,7 +577,7 @@ func (a *Asset) processArchive(ctx context.Context, f archives.FileInfo) error {
 
 	a.Files = append(a.Files, &File{Name: f.Name()})
 
-	log.Trace().Msgf("zip > create file %s", target)
+	log.Trace().Str("app", a.GetName()).Msgf("zip > create file %s", target)
 
 	return nil
 }

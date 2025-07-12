@@ -9,14 +9,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/urfave/cli/v3"
-
-	"github.com/rs/zerolog/log"
 
 	"github.com/ekristen/distillery/pkg/common"
 	"github.com/ekristen/distillery/pkg/config"
 	"github.com/ekristen/distillery/pkg/inventory"
 	"github.com/ekristen/distillery/pkg/provider"
+	"github.com/ekristen/distillery/pkg/spinner"
 )
 
 func Execute(ctx context.Context, c *cli.Command) error { //nolint:funlen
@@ -24,7 +24,7 @@ func Execute(ctx context.Context, c *cli.Command) error { //nolint:funlen
 
 	appName := c.Args().First()
 
-	logger := log.With().Str("app", appName).Logger()
+	logger := zerolog.New(spinner.NewWriter()).With().Ctx(ctx).Timestamp().Str("app", appName).Logger()
 
 	logger.Info().Msg("starting installation")
 
@@ -86,8 +86,6 @@ func Execute(ctx context.Context, c *cli.Command) error { //nolint:funlen
 		logger.Error().Msgf("failed to create source: %s", err.Error())
 		return err
 	}
-
-	logger.Info().Msg("checking configuration")
 
 	if c.String("version") == common.Latest {
 		logger.Info().Msg("resolving latest version")

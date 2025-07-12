@@ -11,15 +11,18 @@ import (
 // SpinnerWriter implements zerolog.LevelWriter and io.Writer for spinner output.
 // Each SpinnerWriter manages its own spinner instance.
 type SpinnerWriter struct {
-	spinner    *pterm.SpinnerPrinter
-	mu         sync.Mutex
-	active     bool
-	prevMsgLen int
+	mu       sync.Mutex
+	multi    pterm.MultiPrinter
+	inactive int
+	spinner  map[string]*pterm.SpinnerPrinter
 }
 
 // NewSpinnerWriter creates a new SpinnerWriter.
 func NewWriter() *SpinnerWriter {
-	return &SpinnerWriter{}
+	return &SpinnerWriter{
+		multi:   pterm.DefaultMultiPrinter,
+		spinner: map[string]*pterm.SpinnerPrinter{},
+	}
 }
 
 // Write implements io.Writer.
@@ -39,6 +42,27 @@ func (sw *SpinnerWriter) WriteLevel(level zerolog.Level, p []byte) (n int, err e
 	msg, _ := event["message"].(string)
 	app, _ := event["app"].(string)
 
+	if app == "" {
+		return 0, nil
+	}
+
+	if !sw.multi.IsActive {
+		sw.multi.Start()
+	}
+
+	var appSpinner *pterm.SpinnerPrinter
+	if app != "" {
+		appSpinner = sw.spinner[app]
+		if appSpinner == nil {
+			var err error
+			appSpinner, err = pterm.DefaultSpinner.WithWriter(sw.multi.NewWriter()).Start(app + ": " + msg)
+			if err != nil {
+				return 0, err
+			}
+			sw.spinner[app] = appSpinner
+		}
+	}
+
 	// Bold the app name if present
 	var prefix string
 	if app != "" {
@@ -46,57 +70,35 @@ func (sw *SpinnerWriter) WriteLevel(level zerolog.Level, p []byte) (n int, err e
 	}
 	fullMsg := prefix + msg
 
-	// Pad the message to clear any trailing characters from previous longer messages
-	displayMsg := fullMsg
-	if sw.prevMsgLen > len(fullMsg) {
-		padding := make([]rune, sw.prevMsgLen-len(fullMsg))
-		for i := range padding {
-			padding[i] = ' '
-		}
-		displayMsg = fullMsg + string(padding)
-	}
-	sw.prevMsgLen = len(fullMsg)
-
-	if !sw.active {
-		var err error
-		sw.spinner, err = pterm.DefaultSpinner.Start(displayMsg)
-		if err != nil {
-			return 0, nil
-		}
-		sw.active = true
-	} else {
-		sw.spinner.UpdateText(displayMsg)
-	}
+	appSpinner.UpdateText(fullMsg)
 
 	// Handle completion states
 	switch {
 	case event["success"] == true:
-		sw.spinner.Success(fullMsg)
-		sw.active = false
-		sw.prevMsgLen = 0
+		appSpinner.Success(fullMsg)
 	case event["fail"] == true:
-		sw.spinner.Fail(fullMsg)
-		sw.active = false
-		sw.prevMsgLen = 0
+		appSpinner.Fail(fullMsg)
 	case event["warn"] == true:
-		sw.spinner.Warning(fullMsg)
-		sw.active = false
-		sw.prevMsgLen = 0
+		appSpinner.Warning(fullMsg)
 	case event["ok"] == true:
-		sw.spinner.InfoPrinter = &pterm.PrefixPrinter{
+		appSpinner.InfoPrinter = &pterm.PrefixPrinter{
 			MessageStyle: &pterm.Style{pterm.FgLightGreen},
 			Prefix: pterm.Prefix{
 				Style: &pterm.Style{pterm.FgBlack, pterm.BgLightGreen},
 				Text:  "OK",
 			},
 		}
-		sw.spinner.Info(fullMsg)
-		sw.active = false
-		sw.prevMsgLen = 0
+		appSpinner.Info(fullMsg)
 	case event["done"] == true:
-		_ = sw.spinner.Stop()
-		sw.active = false
-		sw.prevMsgLen = 0
+		appSpinner.Stop()
+	}
+
+	if !appSpinner.IsActive {
+		sw.inactive++
+	}
+
+	if sw.multi.IsActive && sw.inactive == len(sw.spinner) {
+		sw.multi.Stop()
 	}
 
 	return len(p), nil
