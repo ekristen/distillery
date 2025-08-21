@@ -47,7 +47,7 @@ func (sw *SpinnerWriter) WriteLevel(level zerolog.Level, p []byte) (n int, err e
 	}
 
 	if !sw.multi.IsActive {
-		sw.multi.Start()
+		_, _ = sw.multi.Start()
 	}
 
 	var appSpinner *pterm.SpinnerPrinter
@@ -90,7 +90,7 @@ func (sw *SpinnerWriter) WriteLevel(level zerolog.Level, p []byte) (n int, err e
 		}
 		appSpinner.Info(fullMsg)
 	case event["done"] == true:
-		appSpinner.Stop()
+		_ = appSpinner.Stop()
 	}
 
 	if !appSpinner.IsActive {
@@ -98,7 +98,7 @@ func (sw *SpinnerWriter) WriteLevel(level zerolog.Level, p []byte) (n int, err e
 	}
 
 	if sw.multi.IsActive && sw.inactive == len(sw.spinner) {
-		sw.multi.Stop()
+		_, _ = sw.multi.Stop()
 	}
 
 	return len(p), nil
