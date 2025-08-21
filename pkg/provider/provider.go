@@ -134,14 +134,21 @@ func (p *Provider) discoverBinary(names []string, version string) error { //noli
 			fileScored[k] = []score.Sorted{}
 		}
 
+		terms := names
+		for _, name := range p.OSConfig.GetLibraryNames() {
+			terms = append(terms, name)
+		}
+
+		weightedTerms := map[string]int{
+			"source": -20, // as in source.tar.gz
+		}
+
 		fileScored[k] = score.Score(v, &score.Options{
-			OS:         detectedOS,
-			Arch:       arch,
-			Extensions: ext,
-			Terms:      names,
-			WeightedTerms: map[string]int{
-				"source": -20, // as in source.tar.gz
-			},
+			OS:                detectedOS,
+			Arch:              arch,
+			Extensions:        ext,
+			Terms:             terms,
+			WeightedTerms:     weightedTerms,
 			Versions:          []string{version},
 			InvalidOS:         p.OSConfig.InvalidOS(),
 			InvalidArch:       p.OSConfig.InvalidArchitectures(),
@@ -151,6 +158,7 @@ func (p *Provider) discoverBinary(names []string, version string) error { //noli
 		if len(fileScored[k]) > 0 {
 			for _, vv := range fileScored[k] {
 				if vv.Value >= 40 {
+					p.Logger.Debug().Msgf("HIGH SCORE")
 					highEnoughScore = true
 				}
 				p.Logger.Debug().Msgf("file scoring sorted ! type: %d, scored: %v", k, vv)
