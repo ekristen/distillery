@@ -168,6 +168,13 @@ func Flags() []cli.Flag { //nolint:funlen
 
 	return []cli.Flag{
 		&cli.StringFlag{
+			Name:    "config",
+			Aliases: []string{"c"},
+			Usage:   "Specify the configuration file to use",
+			Sources: cli.EnvVars("DISTILLERY_CONFIG"),
+			Value:   filepath.Join(cfgDir, fmt.Sprintf("%s.yaml", common.NAME)),
+		},
+		&cli.StringFlag{
 			Name:  "version",
 			Usage: "Specify a version to install",
 			Value: "latest",
@@ -206,13 +213,6 @@ func Flags() []cli.Flag { //nolint:funlen
 			Name:  "arch",
 			Usage: "Specify the architecture to install",
 			Value: runtime.GOARCH,
-		},
-		&cli.StringFlag{
-			Name:    "config",
-			Aliases: []string{"c"},
-			Usage:   "Specify the configuration file to use",
-			Sources: cli.EnvVars("DISTILLERY_CONFIG"),
-			Value:   filepath.Join(cfgDir, fmt.Sprintf("%s.yaml", common.NAME)),
 		},
 		&cli.StringFlag{
 			Name:     "github-token",
