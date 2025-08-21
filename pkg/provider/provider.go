@@ -135,9 +135,7 @@ func (p *Provider) discoverBinary(names []string, version string) error { //noli
 		}
 
 		terms := names
-		for _, name := range p.OSConfig.GetLibraryNames() {
-			terms = append(terms, name)
-		}
+		terms = append(terms, p.OSConfig.GetLibraryNames()...)
 
 		weightedTerms := map[string]int{
 			"source": -20, // as in source.tar.gz

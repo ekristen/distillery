@@ -63,7 +63,7 @@ func (o *OS) GetLibrary() string {
 
 func (o *OS) GetLibraryNames() []string {
 	switch o.Library {
-	case "musl":
+	case MUSL:
 		return MUSLNames
 	default:
 		return LIBCNames
@@ -72,7 +72,7 @@ func (o *OS) GetLibraryNames() []string {
 
 func (o *OS) GetInvalidLibraryNames() []string {
 	switch o.Library {
-	case "musl":
+	case MUSL:
 		return LIBCNames
 	default:
 		return MUSLNames
@@ -107,11 +107,11 @@ func (o *OS) InvalidArchitectures() []string {
 	return []string{}
 }
 
-func New(os, arch string, extra ...string) *OS {
+func New(osName, archName string, extra ...string) *OS {
 	newOS := &OS{
-		Name:          os,
-		Arch:          arch,
-		Architectures: []string{arch},
+		Name:          osName,
+		Arch:          archName,
+		Architectures: []string{archName},
 		Library:       detectLibcByLinker(),
 	}
 
@@ -121,7 +121,7 @@ func New(os, arch string, extra ...string) *OS {
 		}
 	}
 
-	switch os {
+	switch osName {
 	case Windows:
 		newOS.Aliases = []string{"win"}
 		newOS.Extensions = []string{".exe"}
@@ -133,7 +133,7 @@ func New(os, arch string, extra ...string) *OS {
 		newOS.Architectures = append(newOS.Architectures, "universal")
 	}
 
-	switch arch {
+	switch archName {
 	case AMD64:
 		newOS.Architectures = append(newOS.Architectures, AMD64Architectures...)
 	case ARM64:

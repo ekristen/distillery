@@ -201,7 +201,6 @@ func calculateAccuracyScore(filename string, knownTerms []string) int {
 		} else {
 			score += -5 // Add a larger penalty for an unknown term
 			log.Trace().Str("filename", filename).Int("current", currentScore).Int("new", score).Msgf("subtracting points (5) for term: %s", term)
-
 		}
 	}
 
