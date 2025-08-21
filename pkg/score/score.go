@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/h2non/filetype"
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 )
 
 type Options struct {
@@ -21,6 +21,7 @@ type Options struct {
 	InvalidOS         []string
 	InvalidArch       []string
 	InvalidExtensions []string
+	InvalidTerms      []string
 }
 
 func (o *Options) GetAllStrings() []string {
@@ -39,8 +40,8 @@ func (o *Options) GetAllStrings() []string {
 }
 
 func Score(names []string, opts *Options) []Sorted { //nolint:gocyclo
-	logger := logrus.WithField("function", "score")
-	logger.Tracef("names: %v", names)
+	logger := log.With().Str("function", "score").Logger()
+	logger.Trace().Msgf("names: %v", names)
 
 	var scores = make(map[string]int)
 
@@ -108,6 +109,8 @@ func Score(names []string, opts *Options) []Sorted { //nolint:gocyclo
 		}
 
 		scores[name] = score + calculateAccuracyScore(name, opts.GetAllStrings())
+
+		logger.Trace().Msgf("scoring %s with score %d", name, scores[name])
 	}
 
 	return SortMapByValue(scores)
@@ -134,22 +137,47 @@ func removeExtension(filename string) string {
 }
 
 func calculateAccuracyScore(filename string, knownTerms []string) int {
-	logrus.Trace("calculating accuracy score for filename: ", filename)
+	log.Trace().Msgf("calculating accuracy score for filename: %s", filename)
 	filename = removeExtension(filename) // Remove the file extension
-	logrus.Trace("filename after removing extension: ", filename)
+	log.Trace().Msgf("filename after removing extension: %s", filename)
 
-	// Split the filename by dashes and dots to get individual terms
-	terms := strings.FieldsFunc(filename, func(r rune) bool {
+	// Sort known terms by length (descending) to replace longest matches first
+	sort.Slice(knownTerms, func(i, j int) bool {
+		return len(knownTerms[i]) > len(knownTerms[j])
+	})
+
+	// Create a map to store placeholders for special terms
+	replacements := make(map[string]string)
+	modifiedFilename := filename
+
+	// Replace known terms with placeholders
+	for i, term := range knownTerms {
+		if strings.Contains(term, "-") || strings.Contains(term, "_") {
+			placeholder := fmt.Sprintf("PLACEHOLDER%d", i)
+			replacements[placeholder] = term
+			modifiedFilename = strings.ReplaceAll(modifiedFilename, term, placeholder)
+		}
+	}
+
+	// Split on delimiters
+	terms := strings.FieldsFunc(modifiedFilename, func(r rune) bool {
 		return r == '-' || r == '_'
 	})
 
+	// Restore original terms from placeholders
+	for i, term := range terms {
+		if originalTerm, exists := replacements[term]; exists {
+			terms[i] = originalTerm
+		}
+	}
+
 	// discovered terms
 	for i, term := range terms {
-		logrus.Tracef("term %d: %s", i, term)
+		log.Trace().Msgf("term %d: %s", i, term)
 	}
 
 	for i, term := range knownTerms {
-		logrus.Tracef("known term %d: %s", i, term)
+		log.Trace().Msgf("known term %d: %s", i, term)
 	}
 
 	// Initialize the score
@@ -163,15 +191,16 @@ func calculateAccuracyScore(filename string, knownTerms []string) int {
 
 	// Check each term in the filename
 	for _, term := range terms {
+		currentScore := score // Store the current score for logging
 		if filename == term {
-			logrus.WithField("filename", filename).Trace("adding point for term: ", term)
 			score += 10 // Add points for a direct match
+			log.Trace().Str("filename", filename).Int("current", currentScore).Int("new", score).Msgf("adding points (10) for term: %s", term)
 		} else if knownMap[term] {
-			logrus.WithField("filename", filename).Trace("adding point for term: ", term)
 			score += 2 // Add point for a correct match
+			log.Trace().Str("filename", filename).Int("current", currentScore).Int("new", score).Msgf("adding points (2) for term: %s", term)
 		} else {
-			logrus.WithField("filename", filename).Trace("subtracting point for term: ", term)
 			score += -5 // Add a larger penalty for an unknown term
+			log.Trace().Str("filename", filename).Int("current", currentScore).Int("new", score).Msgf("subtracting points (5) for term: %s", term)
 		}
 	}
 

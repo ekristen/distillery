@@ -5,16 +5,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/ekristen/distillery/pkg/config"
 	"github.com/ekristen/distillery/pkg/inventory"
 )
-
-func init() {
-	logrus.SetLevel(logrus.TraceLevel)
-}
 
 func TestInventoryWindowsNew(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "inventory_test")

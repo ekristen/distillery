@@ -16,14 +16,9 @@ import (
 	"testing"
 
 	"github.com/dsnet/compress/bzip2"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/ulikunitz/xz"
 )
-
-func init() {
-	logrus.SetLevel(logrus.TraceLevel)
-}
 
 func TestAsset(t *testing.T) {
 	cases := []struct {

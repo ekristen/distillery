@@ -1,5 +1,9 @@
 package osconfig
 
+import (
+	"os"
+)
+
 const (
 	Windows = "windows"
 	Linux   = "linux"
@@ -10,6 +14,9 @@ const (
 	ARM64 = "arm64"
 	ARM32 = "arm32" // note: there is no such thing as arm32, but this is just to standardize the naming
 	AMD32 = "amd32" // note: there is no such thing as amd32, but this is just to standardize the naming
+
+	LIBC = "libc"
+	MUSL = "musl"
 )
 
 var (
@@ -17,6 +24,8 @@ var (
 	ARM64Architectures = []string{"arm64", "aarch64", "armv8-a", "arm64-bit"}
 	X86Architectures   = []string{"x86", "i686", "i386"}
 	ARM32Architectures = []string{"armv7", "armv6", "armv5", "armv4"}
+	LIBCNames          = []string{"libc", "glibc", "gnu", "gnueabihf"}
+	MUSLNames          = []string{"musl", "musl-libc", "musleabihf"}
 )
 
 type OS struct {
@@ -25,6 +34,7 @@ type OS struct {
 	Aliases       []string
 	Architectures []string
 	Extensions    []string
+	Library       string
 }
 
 func (o *OS) GetOS() []string {
@@ -47,6 +57,28 @@ func (o *OS) GetExtensions() []string {
 	return o.Extensions
 }
 
+func (o *OS) GetLibrary() string {
+	return o.Library
+}
+
+func (o *OS) GetLibraryNames() []string {
+	switch o.Library {
+	case MUSL:
+		return MUSLNames
+	default:
+		return LIBCNames
+	}
+}
+
+func (o *OS) GetInvalidLibraryNames() []string {
+	switch o.Library {
+	case MUSL:
+		return LIBCNames
+	default:
+		return MUSLNames
+	}
+}
+
 func (o *OS) InvalidOS() []string {
 	switch o.Name {
 	case Windows:
@@ -63,26 +95,33 @@ func (o *OS) InvalidOS() []string {
 func (o *OS) InvalidArchitectures() []string {
 	switch o.Arch {
 	case ARM64:
-		return AMD64Architectures
+		return append(append(AMD64Architectures, ARM32Architectures...), X86Architectures...)
 	case AMD64:
-		return ARM64Architectures
+		return append(append(ARM64Architectures, ARM32Architectures...), X86Architectures...)
 	case ARM32:
-		return ARM32Architectures
+		return append(append(ARM64Architectures, AMD64Architectures...), X86Architectures...)
 	case AMD32:
-		return ARM64Architectures
+		return append(append(AMD64Architectures, ARM64Architectures...), ARM32Architectures...)
 	}
 
 	return []string{}
 }
 
-func New(os, arch string) *OS {
+func New(osName, archName string, extra ...string) *OS {
 	newOS := &OS{
-		Name:          os,
-		Arch:          arch,
-		Architectures: []string{arch},
+		Name:          osName,
+		Arch:          archName,
+		Architectures: []string{archName},
+		Library:       detectLibcByLinker(),
 	}
 
-	switch os {
+	if len(extra) > 0 {
+		if extra[0] == LIBC || extra[0] == MUSL {
+			newOS.Library = extra[0]
+		}
+	}
+
+	switch osName {
 	case Windows:
 		newOS.Aliases = []string{"win"}
 		newOS.Extensions = []string{".exe"}
@@ -94,7 +133,7 @@ func New(os, arch string) *OS {
 		newOS.Architectures = append(newOS.Architectures, "universal")
 	}
 
-	switch arch {
+	switch archName {
 	case AMD64:
 		newOS.Architectures = append(newOS.Architectures, AMD64Architectures...)
 	case ARM64:
@@ -120,4 +159,12 @@ func removeDuplicateStr(strSlice []string) []string {
 		}
 	}
 	return list
+}
+
+func detectLibcByLinker() string {
+	if _, err := os.Stat("/lib/ld-musl-x86_64.so.1"); err == nil {
+		return "musl"
+	}
+
+	return "glibc"
 }

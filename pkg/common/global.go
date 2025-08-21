@@ -1,14 +1,16 @@
 package common
 
 import (
-	"fmt"
-	"path"
-	"runtime"
+	"context"
+	"io"
+	"os"
 
-	"github.com/apex/log"
-	clilog "github.com/apex/log/handlers/cli"
-	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+
+	"github.com/urfave/cli/v3"
+
+	"github.com/ekristen/distillery/pkg/spinner"
 )
 
 func Flags() []cli.Flag {
@@ -17,64 +19,63 @@ func Flags() []cli.Flag {
 			Name:     "log-level",
 			Usage:    "Log Level",
 			Aliases:  []string{"l"},
-			EnvVars:  []string{"LOG_LEVEL"},
+			Sources:  cli.EnvVars("LOG_LEVEL"),
 			Value:    "info",
+			Category: "Logging Options",
+		},
+		&cli.StringFlag{
+			Name:     "log-format",
+			Usage:    "Log output format (pretty or json)",
+			Sources:  cli.EnvVars("LOG_FORMAT"),
+			Value:    "pretty",
 			Category: "Logging Options",
 		},
 		&cli.BoolFlag{
 			Name:     "log-caller",
-			Usage:    "log the caller (aka line number and file)",
+			Usage:    "include the file/line number of the log entry",
+			Sources:  cli.EnvVars("LOG_CALLER"),
+			Value:    true,
 			Category: "Logging Options",
 		},
 		&cli.BoolFlag{
-			Name:     "log-disable-color",
-			Usage:    "disable log coloring",
+			Name:     "no-spinner",
+			Usage:    "disable spinner",
+			Sources:  cli.EnvVars("NO_SPINNER"),
+			Value:    false,
 			Category: "Logging Options",
-		},
-		&cli.BoolFlag{
-			Name:     "log-full-timestamp",
-			Usage:    "force log output to always show full timestamp",
-			Category: "Logging Options",
+			Hidden:   true,
 		},
 	}
 
 	return globalFlags
 }
 
-func Before(c *cli.Context) error {
-	log.SetHandler(clilog.Default)
-
-	formatter := &logrus.TextFormatter{
-		DisableColors: c.Bool("log-disable-color"),
-		FullTimestamp: c.Bool("log-full-timestamp"),
+func Before(ctx context.Context, c *cli.Command) (context.Context, error) {
+	logLevelStr := c.String("log-level")
+	level, err := zerolog.ParseLevel(logLevelStr)
+	if err != nil {
+		// Fallback to info if parsing fails
+		level = zerolog.InfoLevel
+		log.Error().Msgf("invalid log level '%s', defaulting to 'info'. error: %v\n", logLevelStr, err)
 	}
-	if c.Bool("log-caller") {
-		logrus.SetReportCaller(true)
+	zerolog.SetGlobalLevel(level)
 
-		formatter.CallerPrettyfier = func(f *runtime.Frame) (string, string) {
-			return "", fmt.Sprintf("%s:%d", path.Base(f.File), f.Line)
+	var outputWriter io.Writer
+	if zerolog.GlobalLevel() == zerolog.InfoLevel && !c.Bool("no-spinner") {
+		outputWriter = spinner.NewWriter()
+	} else if c.String("log-format") == "json" || c.Bool("json") {
+		outputWriter = os.Stdout
+	} else {
+		outputWriter = zerolog.ConsoleWriter{
+			Out: os.Stdout,
 		}
 	}
 
-	logrus.SetFormatter(formatter)
-
-	switch c.String("log-level") {
-	case "trace":
-		logrus.SetLevel(logrus.TraceLevel)
-		log.SetLevel(log.DebugLevel)
-	case "debug":
-		logrus.SetLevel(logrus.DebugLevel)
-		log.SetLevel(log.DebugLevel)
-	case "info":
-		logrus.SetLevel(logrus.InfoLevel)
-		log.SetLevel(log.InfoLevel)
-	case "warn":
-		logrus.SetLevel(logrus.WarnLevel)
-		log.SetLevel(log.WarnLevel)
-	case "error":
-		logrus.SetLevel(logrus.ErrorLevel)
-		log.SetLevel(log.ErrorLevel)
+	if c.Bool("log-caller") {
+		log.Logger = zerolog.New(outputWriter).With().Ctx(ctx).Timestamp().Caller().Logger()
+	} else {
+		log.Logger = zerolog.New(outputWriter).With().Ctx(ctx).Timestamp().Logger()
 	}
 
-	return nil
+	return ctx, nil
 }

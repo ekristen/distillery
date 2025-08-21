@@ -20,4 +20,4 @@ jobs:
           go-version: '1.24.x'
           cache: false
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@051d91933864810ecd5e2ea2cfd98f6a5bca5347 # v6
+        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8

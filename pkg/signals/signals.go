@@ -20,7 +20,7 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 )
 
 var onlyOneSignalHandler = make(chan struct{})
@@ -47,10 +47,10 @@ func SetupSignalContext() context.Context {
 	signal.Notify(shutdownHandler, shutdownSignals...)
 	go func() {
 		s := <-shutdownHandler
-		logrus.Warnf("signal received: %q, canceling context...", s)
+		log.Warn().Msgf("signal received: %q, canceling context...", s)
 		cancel()
 		s = <-shutdownHandler
-		logrus.Warnf("second signal received: %q, exiting...", s)
+		log.Warn().Msgf("second signal received: %q, exiting...", s)
 		os.Exit(1) // second signal. Exit directly.
 	}()
 

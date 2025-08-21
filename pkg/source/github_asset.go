@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/google/go-github/v72/github"
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 
 	"github.com/ekristen/distillery/pkg/asset"
 )
@@ -39,7 +39,7 @@ func (a *GitHubAsset) Download(ctx context.Context) error {
 	defer rc.Close()
 
 	if url != "" {
-		logrus.Tracef("url: %s", url)
+		log.Trace().Msgf("url: %s", url)
 	}
 
 	downloadsDir := a.GitHub.Options.Config.GetDownloadsPath()
@@ -58,7 +58,7 @@ func (a *GitHubAsset) Download(ctx context.Context) error {
 	}
 
 	if stats != nil {
-		logrus.Debugf("file already downloaded: %s", assetFile)
+		log.Debug().Msgf("file already downloaded: %s", assetFile)
 		return nil
 	}
 
@@ -83,13 +83,13 @@ func (a *GitHubAsset) Download(ctx context.Context) error {
 		return err
 	}
 
-	logrus.Tracef("hash: %x", hasher.Sum(nil))
+	log.Trace().Msgf("hash: %x", hasher.Sum(nil))
 
 	_ = os.WriteFile(fmt.Sprintf("%s.sha256", assetFile), []byte(fmt.Sprintf("%x", hasher.Sum(nil))), 0600)
 	a.Hash = string(hasher.Sum(nil))
 
-	logrus.Tracef("Downloaded asset to: %s", tmpFile.Name())
-	logrus.Tracef("Release asset name: %s", a.ReleaseAsset.GetName())
+	log.Trace().Msgf("Downloaded asset to: %s", tmpFile.Name())
+	log.Trace().Msgf("Release asset name: %s", a.ReleaseAsset.GetName())
 
 	return nil
 }
