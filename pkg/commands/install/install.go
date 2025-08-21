@@ -1,6 +1,7 @@
 package install
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -8,22 +9,22 @@ import (
 	"strings"
 	"time"
 
-	"github.com/urfave/cli/v2"
-
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
+	"github.com/urfave/cli/v3"
 
 	"github.com/ekristen/distillery/pkg/common"
 	"github.com/ekristen/distillery/pkg/config"
 	"github.com/ekristen/distillery/pkg/inventory"
 	"github.com/ekristen/distillery/pkg/provider"
+	"github.com/ekristen/distillery/pkg/spinner"
 )
 
-func Execute(c *cli.Context) error { //nolint:funlen
+func Execute(ctx context.Context, c *cli.Command) error { //nolint:funlen
 	startTime := time.Now().UTC()
 
 	appName := c.Args().First()
 
-	logger := log.With().Str("app", appName).Logger()
+	logger := zerolog.New(spinner.NewWriter()).With().Ctx(ctx).Timestamp().Str("app", appName).Logger()
 
 	logger.Info().Msg("starting installation")
 
@@ -86,13 +87,11 @@ func Execute(c *cli.Context) error { //nolint:funlen
 		return err
 	}
 
-	logger.Info().Msg("checking configuration")
-
 	if c.String("version") == common.Latest {
 		logger.Info().Msg("resolving latest version")
 	}
 
-	if err := src.PreRun(c.Context); err != nil {
+	if err := src.PreRun(ctx); err != nil {
 		logger.Error().Err(err).Msg("failed to prepare installation")
 		return err
 	}
@@ -109,14 +108,14 @@ func Execute(c *cli.Context) error { //nolint:funlen
 		}
 
 		if installedVersion != nil && installedVersion.Version == src.GetVersion() {
-			logger.Warn().Msgf("version %s is already installed (reinstall with --force)", src.GetVersion())
+			logger.Warn().Bool("ok", true).Msgf("version %s is already installed (reinstall with --force)", src.GetVersion())
 			return nil
 		}
 	}
 
 	logger.Info().Msgf("installing version %s", src.GetVersion())
 
-	if err := src.Run(c.Context); err != nil {
+	if err := src.Run(ctx); err != nil {
 		logger.Error().Err(err).Msg("installation failed")
 		return err
 	}
@@ -129,19 +128,19 @@ func Execute(c *cli.Context) error { //nolint:funlen
 	return nil
 }
 
-func Before(c *cli.Context) error {
+func Before(ctx context.Context, c *cli.Command) (context.Context, error) {
 	if c.NArg() == 0 {
-		return fmt.Errorf("no binary specified")
+		return ctx, fmt.Errorf("no binary specified")
 	}
 
 	if c.NArg() > 1 {
 		for _, arg := range c.Args().Slice() {
 			if strings.HasPrefix(arg, "-") {
-				return fmt.Errorf("flags must be specified before the binary(ies)")
+				return ctx, fmt.Errorf("flags must be specified before the binary(ies)")
 			}
 		}
 
-		return fmt.Errorf("currently only one binary can be installed at a time")
+		return ctx, fmt.Errorf("currently only one binary can be installed at a time")
 	}
 
 	parts := strings.Split(c.Args().First(), "@")
@@ -150,14 +149,14 @@ func Before(c *cli.Context) error {
 	} else if len(parts) == 1 {
 		_ = c.Set("version", "latest")
 	} else {
-		return fmt.Errorf("invalid binary specified")
+		return ctx, fmt.Errorf("invalid binary specified")
 	}
 
 	if c.String("bin") != "" {
 		_ = c.Set("bins", "false")
 	}
 
-	return common.Before(c)
+	return common.Before(ctx, c)
 }
 
 func Flags() []cli.Flag { //nolint:funlen
@@ -168,6 +167,13 @@ func Flags() []cli.Flag { //nolint:funlen
 	}
 
 	return []cli.Flag{
+		&cli.StringFlag{
+			Name:    "config",
+			Aliases: []string{"c"},
+			Usage:   "Specify the configuration file to use",
+			Sources: cli.EnvVars("DISTILLERY_CONFIG"),
+			Value:   filepath.Join(cfgDir, fmt.Sprintf("%s.yaml", common.NAME)),
+		},
 		&cli.StringFlag{
 			Name:  "version",
 			Usage: "Specify a version to install",
@@ -208,40 +214,33 @@ func Flags() []cli.Flag { //nolint:funlen
 			Usage: "Specify the architecture to install",
 			Value: runtime.GOARCH,
 		},
-		&cli.PathFlag{
-			Name:    "config",
-			Aliases: []string{"c"},
-			Usage:   "Specify the configuration file to use",
-			EnvVars: []string{"DISTILLERY_CONFIG"},
-			Value:   filepath.Join(cfgDir, fmt.Sprintf("%s.yaml", common.NAME)),
-		},
 		&cli.StringFlag{
 			Name:     "github-token",
 			Usage:    "GitHub token to use for GitHub API requests",
-			EnvVars:  []string{"DISTILLERY_GITHUB_TOKEN"},
+			Sources:  cli.EnvVars("DISTILLERY_GITHUB_TOKEN"),
 			Category: "Authentication",
 		},
 		&cli.StringFlag{
 			Name:     "gitlab-token",
 			Usage:    "GitLab token to use for GitLab API requests",
-			EnvVars:  []string{"DISTILLERY_GITLAB_TOKEN"},
+			Sources:  cli.EnvVars("DISTILLERY_GITLAB_TOKEN"),
 			Category: "Authentication",
 		},
 		&cli.BoolFlag{
 			Name:    "include-pre-releases",
 			Usage:   "include pre-releases in the list of available versions",
-			EnvVars: []string{"DISTILLERY_INCLUDE_PRE_RELEASES"},
+			Sources: cli.EnvVars("DISTILLERY_INCLUDE_PRE_RELEASES"),
 			Aliases: []string{"pre"},
 		},
 		&cli.BoolFlag{
 			Name:    "no-checksum-verify",
 			Usage:   "disable checksum verification",
-			EnvVars: []string{"DISTILLERY_NO_CHECKSUM_VERIFY"},
+			Sources: cli.EnvVars("DISTILLERY_NO_CHECKSUM_VERIFY"),
 		},
 		&cli.BoolFlag{
 			Name:    "no-signature-verify",
 			Usage:   "disable signature verification",
-			EnvVars: []string{"DISTILLERY_NO_SIGNATURE_VERIFY"},
+			Sources: cli.EnvVars("DISTILLERY_NO_SIGNATURE_VERIFY"),
 		},
 		&cli.BoolFlag{
 			Name:  "no-score-check",
@@ -253,13 +252,13 @@ func Flags() []cli.Flag { //nolint:funlen
 		},
 		&cli.BoolFlag{
 			Name:    "use-dist-cache",
-			EnvVars: []string{"DISTILLERY_USE_CACHE"},
+			Sources: cli.EnvVars("DISTILLERY_USE_CACHE"),
 			Usage:   "[EXPERIMENTAL] use the distillery pass-through cache for github to avoid authentication",
 		},
 		&cli.StringFlag{
 			Name:    "dist-cache-url",
 			Value:   "https://api.github.cache.dist.sh",
-			EnvVars: []string{"DISTILLERY_CACHE_URL"},
+			Sources: cli.EnvVars("DISTILLERY_CACHE_URL"),
 			Usage: "[EXPERIMENTAL] specify the base url for the distillery pass-through cache" +
 				" for github to avoid authentication and rate limiting",
 			Hidden: true,
@@ -275,7 +274,6 @@ func init() {
 		Before:      Before,
 		Flags:       append(Flags(), common.Flags()...),
 		Action:      Execute,
-		Args:        true,
 		ArgsUsage:   "[provider/]owner/repo[@version]",
 	}
 

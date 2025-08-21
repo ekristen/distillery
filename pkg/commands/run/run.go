@@ -1,13 +1,13 @@
 package run
 
 import (
+	"context"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
 	"github.com/rs/zerolog/log"
 
@@ -36,7 +36,9 @@ func discover(cwd string) (string, error) {
 	return "", errors.New("no Distfile found in current directory or $HOME")
 }
 
-func Execute(c *cli.Context) error { //nolint:gocyclo,funlen
+func Execute(ctx context.Context, c *cli.Command) error { //nolint:gocyclo
+	_ = c.Set("no-spinner", "true")
+
 	var df string
 	if c.Args().Len() == 0 {
 		// Check current working directory
@@ -91,18 +93,9 @@ func Execute(c *cli.Context) error { //nolint:gocyclo,funlen
 				sem <- struct{}{}
 				defer func() { <-sem }()
 
-				logger := log.With().Str("app", command.Args[0]).Logger()
-
-				installText := fmt.Sprintf("Setting up %s", command.Args[0])
-				logger.Info().Msg(installText)
-
-				ctx := cli.NewContext(c.App, nil, nil)
 				args := append([]string{"install"}, command.Args...)
-				if installErr := instCmd.Run(ctx, args...); installErr != nil {
+				if installErr := instCmd.Run(ctx, args); installErr != nil {
 					errCh <- installErr
-					logger.Error().Msgf("Failed %s: %s", command.Args[0], installErr.Error())
-				} else {
-					logger.Info().Msgf("Completed %s", command.Args[0])
 				}
 			}(i, command)
 		} else {
@@ -111,7 +104,7 @@ func Execute(c *cli.Context) error { //nolint:gocyclo,funlen
 		}
 
 		select {
-		case <-c.Context.Done(): //nolint:staticcheck
+		case <-ctx.Done():
 			return nil
 		default:
 			continue
@@ -123,6 +116,7 @@ func Execute(c *cli.Context) error { //nolint:gocyclo,funlen
 
 	var didError bool
 	for err := range errCh {
+		log.Error().Err(err).Msg("error encountered")
 		if err != nil {
 			didError = true
 		}

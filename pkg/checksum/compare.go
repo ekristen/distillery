@@ -35,7 +35,7 @@ func ComputeFileHash(filePath string, hashFunc func() hash.Hash) (string, error)
 
 // DetermineHashFunc determines the hash function to use based on the checksum file and the lengths of the hashes.
 func DetermineHashFunc(checksumFilePath string) (func() hash.Hash, error) {
-	log := log.With().Str("handler", "determine-hash-func").Logger()
+	logger := log.With().Str("handler", "determine-hash-func").Logger()
 
 	// Open the checksum file
 	checksumFile, err := os.Open(checksumFilePath)
@@ -51,7 +51,7 @@ func DetermineHashFunc(checksumFilePath string) (func() hash.Hash, error) {
 
 	// Determine the hash function based on the length of the hash
 	hashLength := len(strings.Fields(line)[0])
-	log.Trace().Msgf("hashLength: ", hashLength)
+	logger.Trace().Msgf("hashLength: %d", hashLength)
 
 	switch hashLength {
 	case 32:
@@ -69,7 +69,7 @@ func DetermineHashFunc(checksumFilePath string) (func() hash.Hash, error) {
 
 // CompareHashWithChecksumFile compares the computed hash of a file with the hashes in a checksum file.
 func CompareHashWithChecksumFile(srcFilename, srcFilePath, checksumFilePath string) (bool, error) {
-	log := log.With().Str("handler", "compare-hash-with-checksum-file").Logger()
+	logger := log.With().Str("handler", "compare-hash-with-checksum-file").Logger()
 
 	hashFunc, err := DetermineHashFunc(checksumFilePath)
 	if err != nil {
@@ -108,8 +108,8 @@ func CompareHashWithChecksumFile(srcFilename, srcFilePath, checksumFilePath stri
 			return false, fmt.Errorf("unable to find hash and filename in checksum file")
 		}
 
-		log.Trace().Msgf("fileHash: %s", fileHash)
-		log.Trace().Msgf("filename: %s", hashFilename)
+		logger.Trace().Msgf("fileHash: %s", fileHash)
+		logger.Trace().Msgf("filename: %s", hashFilename)
 		// Rust does *(binary) for the binary name
 		hashFilename = strings.TrimPrefix(hashFilename, "*")
 
