@@ -4,7 +4,7 @@ ARG PROJECT_NAME=dist
 RUN apk add --no-cache ca-certificates
 RUN addgroup -S ${PROJECT_NAME} && adduser -S ${PROJECT_NAME} -G ${PROJECT_NAME}
 
-FROM golang:1.24.0@sha256:4546829ecda4404596cf5c9d8936488283910a3564ffc8fe4f32b33ddaeff239 AS build
+FROM golang:1.25.1@sha256:d7098379b7da665ab25b99795465ec320b1ca9d4addb9f77409c4827dc904211 AS build
 ARG PROJECT_NAME=dist
 COPY / /src
 WORKDIR /src
