@@ -9,7 +9,7 @@ require (
 	github.com/apex/log v1.9.0
 	github.com/dsnet/compress v0.0.2-0.20230904184137-39efe44ab707
 	github.com/gabriel-vasile/mimetype v1.4.11
-	github.com/google/go-github/v72 v72.0.0
+	github.com/google/go-github/v79 v79.0.0
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
 	github.com/h2non/filetype v1.1.3
 	github.com/mholt/archives v0.1.5
