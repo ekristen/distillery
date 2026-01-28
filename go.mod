@@ -2,7 +2,7 @@ module github.com/ekristen/distillery
 
 go 1.24.0
 
-toolchain go1.24.6
+toolchain go1.25.6
 
 require (
 	github.com/ProtonMail/gopenpgp/v2 v2.9.0
