@@ -151,6 +151,7 @@ func (p *Provider) discoverBinary(names []string, version string) error { //noli
 			InvalidOS:         p.OSConfig.InvalidOS(),
 			InvalidArch:       p.OSConfig.InvalidArchitectures(),
 			InvalidExtensions: []string{".zst"},
+			InvalidTerms:      p.OSConfig.GetInvalidLibraryNames(),
 		})
 
 		if len(fileScored[k]) > 0 {

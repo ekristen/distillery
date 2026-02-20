@@ -86,6 +86,9 @@ func Score(names []string, opts *Options) []Sorted { //nolint:gocyclo
 		for _, ext := range opts.InvalidExtensions {
 			scoringValues[strings.ToLower(ext)] = -20
 		}
+		for _, term := range opts.InvalidTerms {
+			scoringValues[strings.ToLower(term)] = -10
+		}
 
 		for term, weight := range opts.WeightedTerms {
 			scoringValues[strings.ToLower(term)] = weight
