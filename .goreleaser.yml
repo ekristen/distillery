@@ -21,6 +21,9 @@ builds:
     goarm:
       - "6"
       - "7"
+    ignore:
+      - goos: windows
+        goarch: arm
     flags:
       - -trimpath
     ldflags:
@@ -46,12 +49,13 @@ sboms:
   - artifacts: archive
 archives:
   - id: distillery
-    builds:
+    ids:
       - distillery
     name_template: "{{ .ProjectName }}-v{{ .Version }}-{{ .Os }}-{{ .Arch }}{{ .Arm }}"
     format_overrides:
       - goos: windows
-        format: zip
+        formats:
+          - zip
 signs:
   - ids:
       - default
