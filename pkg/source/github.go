@@ -88,23 +88,18 @@ func (s *GitHub) sourceRun(ctx context.Context) error {
 	s.client = github.NewClient(httpcache.NewTransport(diskcache.New(cacheFile)).Client())
 	useDistCache := s.Options.Settings["use-dist-cache"].(bool)
 	if useDistCache {
-		s.Logger.Debug().Msg("using disk cache")
+		s.Logger.Debug().Msg("using dist cache")
 		baseURL := s.Options.Settings["dist-cache-url"].(string)
 		if baseURL != "" {
-			if strings.HasPrefix(baseURL, "http:") {
-				s.Logger.Debug().Msgf("using disk cache with base url: %s", baseURL)
-				s.client.BaseURL = &url.URL{
-					Scheme: "http",
-					Host:   strings.Replace(baseURL, "http://", "", 1),
-					Path:   "/",
-				}
-			} else {
-				s.client.BaseURL = &url.URL{
-					Scheme: "https",
-					Host:   strings.Replace(baseURL, "https://", "", 1),
-					Path:   "/",
-				}
+			s.Logger.Debug().Msgf("using dist cache with base url: %s", baseURL)
+			parsedURL, err := url.Parse(baseURL)
+			if err != nil {
+				return fmt.Errorf("invalid dist-cache-url %q: %w", baseURL, err)
 			}
+			if parsedURL.Path == "" {
+				parsedURL.Path = "/"
+			}
+			s.client.BaseURL = parsedURL
 		}
 	} else {
 		githubToken := s.Options.Settings["github-token"].(string)

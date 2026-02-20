@@ -89,7 +89,7 @@ func (s *GitLab) sourceRun(ctx context.Context) error {
 	return nil
 }
 
-func (s *GitLab) FindRelease(ctx context.Context) error {
+func (s *GitLab) FindRelease(ctx context.Context) error { //nolint:gocyclo
 	var err error
 	var release *gitlab.Release
 
