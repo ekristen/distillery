@@ -9,7 +9,6 @@ import (
 
 	"github.com/gregjones/httpcache"
 	"github.com/gregjones/httpcache/diskcache"
-	"github.com/rs/zerolog/log"
 
 	"github.com/ekristen/distillery/pkg/asset"
 	"github.com/ekristen/distillery/pkg/clients/hashicorp"
@@ -84,7 +83,7 @@ func (s *Hashicorp) sourceRun(ctx context.Context) error {
 		return fmt.Errorf("no release found for %s version %s", s.Repo, s.Version)
 	}
 
-	log.Info().Msgf("installing %s@%s", release.Name, release.Version)
+	s.Logger.Info().Msgf("installing %s@%s", release.Name, release.Version)
 
 	for _, build := range release.Builds {
 		s.Assets = append(s.Assets, &HashicorpAsset{

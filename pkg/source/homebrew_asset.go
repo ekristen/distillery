@@ -10,8 +10,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/rs/zerolog/log"
-
 	"github.com/ekristen/distillery/pkg/asset"
 	"github.com/ekristen/distillery/pkg/clients/homebrew"
 )
@@ -51,7 +49,7 @@ func (a *HomebrewAsset) getAuthToken() (*GHCRAuth, error) {
 	q.Add("scope", fmt.Sprintf("repository:homebrew/core/%s:%s", a.Homebrew.GetRepo(), "pull"))
 	req.URL.RawQuery = q.Encode()
 
-	log.Trace().Msgf("request: %s", req.URL.String())
+	a.Homebrew.Logger.Trace().Msgf("request: %s", req.URL.String())
 
 	var t *GHCRAuth
 
@@ -69,6 +67,8 @@ func (a *HomebrewAsset) getAuthToken() (*GHCRAuth, error) {
 }
 
 func (a *HomebrewAsset) Download(ctx context.Context) error {
+	logger := a.Homebrew.Logger
+
 	downloadsDir := a.Homebrew.Options.Config.GetDownloadsPath()
 	filename := filepath.Base(a.Name + ".tar.gz")
 
@@ -83,7 +83,7 @@ func (a *HomebrewAsset) Download(ctx context.Context) error {
 	}
 
 	if stats != nil {
-		log.Debug().Msg("file already downloaded")
+		logger.Debug().Msg("file already downloaded")
 		return nil
 	}
 
@@ -93,7 +93,7 @@ func (a *HomebrewAsset) Download(ctx context.Context) error {
 	}
 
 	// TODO: lookup manifest to determine how the file is stored ...
-	req, err := http.NewRequestWithContext(context.TODO(), "GET", a.FileVariant.URL, http.NoBody)
+	req, err := http.NewRequestWithContext(ctx, "GET", a.FileVariant.URL, http.NoBody)
 	if err != nil {
 		return err
 	}
@@ -115,27 +115,18 @@ func (a *HomebrewAsset) Download(ctx context.Context) error {
 
 	multiWriter := io.MultiWriter(tmpFile, hasher)
 
-	f, err := os.Create(assetFile)
-	if err != nil {
-		return err
-	}
-
-	// Write the asset's content to the temporary file
+	// Write the asset's content to the file and hasher simultaneously
 	_, err = io.Copy(multiWriter, resp.Body)
 	if err != nil {
 		return err
 	}
 
-	if _, err := io.Copy(f, resp.Body); err != nil {
-		return err
-	}
+	logger.Trace().Msgf("hash: %x", hasher.Sum(nil))
 
-	log.Trace().Msgf("hash: %x", hasher.Sum(nil))
+	_ = os.WriteFile(assetFileHash, []byte(fmt.Sprintf("%x", hasher.Sum(nil))), 0600)
+	a.Hash = fmt.Sprintf("%x", hasher.Sum(nil))
 
-	_ = os.WriteFile(assetFileHash, []byte(string(hasher.Sum(nil))), 0600)
-	a.Hash = string(hasher.Sum(nil))
-
-	log.Trace().Msgf("Downloaded asset to: %s", tmpFile.Name())
+	logger.Trace().Msgf("Downloaded asset to: %s", tmpFile.Name())
 
 	return nil
 }

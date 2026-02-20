@@ -8,7 +8,6 @@ import (
 
 	"github.com/gregjones/httpcache"
 	"github.com/gregjones/httpcache/diskcache"
-	"github.com/rs/zerolog/log"
 
 	"github.com/ekristen/distillery/pkg/asset"
 	"github.com/ekristen/distillery/pkg/clients/gitlab"
@@ -113,8 +112,10 @@ func (s *GitLab) FindRelease(ctx context.Context) error {
 			if strings.Contains(err.Error(), "404 Not Found") {
 				gitlabToken := s.Options.Settings["gitlab-token"].(string)
 				if gitlabToken == "" {
-					log.Warn().Msg("no authentication token provided, a 404 error may be due to permissions")
+					return fmt.Errorf("project %s/%s not found (provide --gitlab-token for private projects)",
+						s.GetOwner(), s.GetRepo())
 				}
+				return fmt.Errorf("project %s/%s not found", s.GetOwner(), s.GetRepo())
 			}
 
 			return err
@@ -142,7 +143,10 @@ func (s *GitLab) FindRelease(ctx context.Context) error {
 	}
 
 	if release == nil {
-		return fmt.Errorf("release not found")
+		if s.Version == provider.VersionLatest {
+			return fmt.Errorf("no releases found for %s/%s", s.GetOwner(), s.GetRepo())
+		}
+		return fmt.Errorf("version %s not found for %s/%s", s.Version, s.GetOwner(), s.GetRepo())
 	}
 
 	s.Release = release
