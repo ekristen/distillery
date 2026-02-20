@@ -9,8 +9,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/rs/zerolog/log"
-
 	"github.com/ekristen/distillery/pkg/asset"
 	"github.com/ekristen/distillery/pkg/clients/gitlab"
 	"github.com/ekristen/distillery/pkg/common"
@@ -32,6 +30,8 @@ func (a *GitLabAsset) Path() string {
 }
 
 func (a *GitLabAsset) Download(ctx context.Context) error { //nolint:dupl,nolintlint
+	logger := a.GitLab.Logger
+
 	downloadsDir := a.GitLab.Options.Config.GetDownloadsPath()
 	filename := filepath.Base(a.Link.URL)
 
@@ -46,18 +46,16 @@ func (a *GitLabAsset) Download(ctx context.Context) error { //nolint:dupl,nolint
 	}
 
 	if stats != nil {
-		log.Debug().Msgf("file already downloaded: %s", assetFile)
+		logger.Debug().Msgf("file already downloaded: %s", assetFile)
 		return nil
 	}
 
-	log.Debug().Msgf("downloading asset: %s", a.Link.URL)
+	logger.Debug().Msgf("downloading asset: %s", a.Link.URL)
 
-	req, err := http.NewRequestWithContext(context.TODO(), "GET", a.Link.URL, http.NoBody)
+	req, err := http.NewRequestWithContext(ctx, "GET", a.Link.URL, http.NoBody)
 	if err != nil {
 		return err
 	}
-
-	req = req.WithContext(ctx)
 	req.Header.Add("User-Agent", fmt.Sprintf("%s/%s", common.NAME, common.AppVersion))
 
 	if a.GitLab.Client.GetToken() != "" {
@@ -83,27 +81,18 @@ func (a *GitLabAsset) Download(ctx context.Context) error { //nolint:dupl,nolint
 
 	multiWriter := io.MultiWriter(tmpFile, hasher)
 
-	f, err := os.Create(assetFile)
-	if err != nil {
-		return err
-	}
-
-	// Write the asset's content to the temporary file
+	// Write the asset's content to the file and hasher simultaneously
 	_, err = io.Copy(multiWriter, resp.Body)
 	if err != nil {
 		return err
 	}
 
-	if _, err := io.Copy(f, resp.Body); err != nil {
-		return err
-	}
-
-	log.Trace().Msgf("hash: %x", hasher.Sum(nil))
+	logger.Trace().Msgf("hash: %x", hasher.Sum(nil))
 
 	_ = os.WriteFile(assetFileHash, []byte(fmt.Sprintf("%x", hasher.Sum(nil))), 0600)
 	a.Hash = string(hasher.Sum(nil))
 
-	log.Trace().Msgf("Downloaded asset to: %s", tmpFile.Name())
+	logger.Trace().Msgf("Downloaded asset to: %s", tmpFile.Name())
 
 	return nil
 }

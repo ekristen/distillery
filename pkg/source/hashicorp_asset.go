@@ -9,8 +9,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/rs/zerolog/log"
-
 	"github.com/ekristen/distillery/pkg/asset"
 	"github.com/ekristen/distillery/pkg/clients/hashicorp"
 	"github.com/ekristen/distillery/pkg/common"
@@ -36,6 +34,8 @@ func (a *HashicorpAsset) Path() string {
 }
 
 func (a *HashicorpAsset) Download(ctx context.Context) error {
+	logger := a.Hashicorp.Logger
+
 	downloadsDir := a.Hashicorp.Options.Config.GetDownloadsPath()
 	filename := filepath.Base(a.Build.URL)
 
@@ -50,18 +50,16 @@ func (a *HashicorpAsset) Download(ctx context.Context) error {
 	}
 
 	if stats != nil {
-		log.Debug().Msg("file already downloaded")
+		logger.Debug().Msg("file already downloaded")
 		return nil
 	}
 
-	log.Debug().Msgf("downloading asset: %s", a.Build.URL)
+	logger.Debug().Msgf("downloading asset: %s", a.Build.URL)
 
-	req, err := http.NewRequestWithContext(context.TODO(), "GET", a.Build.URL, http.NoBody)
+	req, err := http.NewRequestWithContext(ctx, "GET", a.Build.URL, http.NoBody)
 	if err != nil {
 		return err
 	}
-
-	req = req.WithContext(ctx)
 	req.Header.Add("User-Agent", fmt.Sprintf("%s/%s", common.NAME, common.AppVersion))
 
 	resp, err := http.DefaultClient.Do(req)
@@ -83,27 +81,18 @@ func (a *HashicorpAsset) Download(ctx context.Context) error {
 
 	multiWriter := io.MultiWriter(tmpFile, hasher)
 
-	f, err := os.Create(assetFile)
-	if err != nil {
-		return err
-	}
-
-	// Write the asset's content to the temporary file
+	// Write the asset's content to the file and hasher simultaneously
 	_, err = io.Copy(multiWriter, resp.Body)
 	if err != nil {
 		return err
 	}
 
-	if _, err := io.Copy(f, resp.Body); err != nil {
-		return err
-	}
-
-	log.Trace().Msgf("hash: %x", hasher.Sum(nil))
+	logger.Trace().Msgf("hash: %x", hasher.Sum(nil))
 
 	_ = os.WriteFile(assetFileHash, []byte(fmt.Sprintf("%x", hasher.Sum(nil))), 0600)
 	a.Hash = string(hasher.Sum(nil))
 
-	log.Trace().Msgf("Downloaded asset to: %s", tmpFile.Name())
+	logger.Trace().Msgf("Downloaded asset to: %s", tmpFile.Name())
 
 	return nil
 }

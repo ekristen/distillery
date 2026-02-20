@@ -10,7 +10,6 @@ import (
 	"github.com/google/go-github/v72/github"
 	"github.com/gregjones/httpcache"
 	"github.com/gregjones/httpcache/diskcache"
-	"github.com/rs/zerolog/log"
 
 	"github.com/ekristen/distillery/pkg/asset"
 	"github.com/ekristen/distillery/pkg/common"
@@ -89,11 +88,11 @@ func (s *GitHub) sourceRun(ctx context.Context) error {
 	s.client = github.NewClient(httpcache.NewTransport(diskcache.New(cacheFile)).Client())
 	useDistCache := s.Options.Settings["use-dist-cache"].(bool)
 	if useDistCache {
-		log.Debug().Msg("using disk cache")
+		s.Logger.Debug().Msg("using disk cache")
 		baseURL := s.Options.Settings["dist-cache-url"].(string)
 		if baseURL != "" {
 			if strings.HasPrefix(baseURL, "http:") {
-				log.Debug().Msgf("using disk cache with base url: %s", baseURL)
+				s.Logger.Debug().Msgf("using disk cache with base url: %s", baseURL)
 				s.client.BaseURL = &url.URL{
 					Scheme: "http",
 					Host:   strings.Replace(baseURL, "http://", "", 1),
@@ -160,8 +159,10 @@ func (s *GitHub) FindRelease(ctx context.Context) error { //nolint:gocyclo
 				if strings.Contains(err.Error(), "404 Not Found") {
 					githubToken := s.Options.Settings["github-token"].(string)
 					if githubToken == "" {
-						s.Logger.Warn().Msg("no authentication token provided, a 404 error may be due to permissions")
+						return fmt.Errorf("repository %s/%s not found (provide --github-token for private repos)",
+							s.GetOwner(), s.GetRepo())
 					}
+					return fmt.Errorf("repository %s/%s not found", s.GetOwner(), s.GetRepo())
 				}
 
 				return err
@@ -193,7 +194,10 @@ func (s *GitHub) FindRelease(ctx context.Context) error { //nolint:gocyclo
 	}
 
 	if release == nil {
-		return fmt.Errorf("release not found")
+		if s.Version == provider.VersionLatest {
+			return fmt.Errorf("no releases found for %s/%s", s.GetOwner(), s.GetRepo())
+		}
+		return fmt.Errorf("version %s not found for %s/%s", s.Version, s.GetOwner(), s.GetRepo())
 	}
 
 	s.Release = release
