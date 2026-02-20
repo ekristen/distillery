@@ -9,14 +9,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v3"
 
 	"github.com/ekristen/distillery/pkg/common"
 	"github.com/ekristen/distillery/pkg/config"
 	"github.com/ekristen/distillery/pkg/inventory"
 	"github.com/ekristen/distillery/pkg/provider"
-	"github.com/ekristen/distillery/pkg/spinner"
 )
 
 func Execute(ctx context.Context, c *cli.Command) error { //nolint:funlen
@@ -24,18 +23,18 @@ func Execute(ctx context.Context, c *cli.Command) error { //nolint:funlen
 
 	appName := c.Args().First()
 
-	logger := zerolog.New(spinner.NewWriter()).With().Ctx(ctx).Timestamp().Str("app", appName).Logger()
+	logger := log.Logger.With().Str("app", appName).Logger()
 
 	logger.Info().Msg("starting installation")
 
 	cfg, err := config.New(c.String("config"))
 	if err != nil {
-		logger.Error().Msg("failed to load configuration")
+		logger.Error().Bool("fail", true).Err(err).Msgf("failed to load configuration: %s", err)
 		return err
 	}
 
 	if err := cfg.MkdirAll(); err != nil {
-		logger.Error().Msg("failed to create directories")
+		logger.Error().Bool("fail", true).Err(err).Msgf("failed to create directories: %s", err)
 		return err
 	}
 
@@ -83,7 +82,7 @@ func Execute(ctx context.Context, c *cli.Command) error { //nolint:funlen
 	})
 
 	if err != nil {
-		logger.Error().Msgf("failed to create source: %s", err.Error())
+		logger.Error().Bool("fail", true).Msgf("failed to create source: %s", err.Error())
 		return err
 	}
 
@@ -92,7 +91,7 @@ func Execute(ctx context.Context, c *cli.Command) error { //nolint:funlen
 	}
 
 	if err := src.PreRun(ctx); err != nil {
-		logger.Error().Err(err).Msg("failed to prepare installation")
+		logger.Error().Bool("fail", true).Err(err).Msgf("%s", err)
 		return err
 	}
 
@@ -116,7 +115,7 @@ func Execute(ctx context.Context, c *cli.Command) error { //nolint:funlen
 	logger.Info().Msgf("installing version %s", src.GetVersion())
 
 	if err := src.Run(ctx); err != nil {
-		logger.Error().Err(err).Msg("installation failed")
+		logger.Error().Bool("fail", true).Err(err).Msgf("installation failed: %s", err)
 		return err
 	}
 
