@@ -162,9 +162,23 @@ func removeDuplicateStr(strSlice []string) []string {
 }
 
 func detectLibcByLinker() string {
-	if _, err := os.Stat("/lib/ld-musl-x86_64.so.1"); err == nil {
-		return "musl"
+	// Check for musl linker across all common architectures
+	muslPaths := []string{
+		"/lib/ld-musl-x86_64.so.1",
+		"/lib/ld-musl-aarch64.so.1",
+		"/lib/ld-musl-armhf.so.1",
+		"/lib/ld-musl-arm.so.1",
+		"/lib/ld-musl-i386.so.1",
+		"/lib/ld-musl-s390x.so.1",
+		"/lib/ld-musl-ppc64le.so.1",
+		"/lib/ld-musl-riscv64.so.1",
 	}
 
-	return "glibc"
+	for _, path := range muslPaths {
+		if _, err := os.Stat(path); err == nil {
+			return MUSL
+		}
+	}
+
+	return LIBC
 }
