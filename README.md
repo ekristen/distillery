@@ -20,7 +20,7 @@ dependencies, that's where homebrew shines.
 
 The goal of this project is to install binaries by leverage the collective power of all the developers out there that
 are using tools like [goreleaser](https://goreleaser.com/) and [cargo-dist](https://github.com/axodotdev/cargo-dist)
-and many others to pre-compile their software and put their binaries up on GitHub or GitLab.
+and many others to pre-compile their software and put their binaries up on GitHub, GitLab, or Codeberg.
 
 ## Documentation
 
@@ -115,7 +115,12 @@ Install a binary from GitLab.
 dist install gitlab/gitlab-org/gitlab-runner
 ```
 
-Often times installing from GitHub or GitLab is sufficient, but if you are on a MacOS system and Homebrew
+Install a binary from Codeberg.
+```console
+dist install codeberg/forgejo-contrib/forgejo-cli
+```
+
+Often times installing from GitHub, GitLab, or Codeberg is sufficient, but if you are on a MacOS system and Homebrew
 has the binary you want, you can install it using the `homebrew` scope. I would generally still recommend just
 installing from GitHub or GitLab directly.
 
@@ -127,15 +132,22 @@ dist install homebrew/opentofu
 
 - GitHub
 - GitLab
+- Forgejo / Codeberg (Codeberg works out of the box; any Forgejo instance can be configured)
 - Homebrew (binaries only, if anything has a dependency, it will not work at this time)
 - Hashicorp (special handling for their releases, pointing to GitHub repos will automatically pass through)
 - Kubernetes (special handling for their releases, pointing to GitHub repos will automatically pass through)
 
 ### Authentication
 
-Distillery supports authentication for GitHub and GitLab. There are CLI options to pass in a token, but the preferred
-method is to set the `DISTILLERY_GITHUB_TOKEN` or `DISTILLERY_GITLAB_TOKEN` environment variables using a tool like
+Distillery supports authentication for GitHub, GitLab, and Forgejo/Codeberg. There are CLI options to pass
+in a token, but the preferred method is to set the appropriate environment variable using a tool like
 [direnv](https://direnv.net/).
+
+| Source | Environment variable | CLI flag |
+|---|---|---|
+| GitHub | `DISTILLERY_GITHUB_TOKEN` | `--github-token` |
+| GitLab | `DISTILLERY_GITLAB_TOKEN` | `--gitlab-token` |
+| Forgejo / Codeberg | `DISTILLERY_FORGEJO_TOKEN` | `--forgejo-token` |
 
 ## Directory Structure
 

@@ -156,22 +156,46 @@ func NewSource(src string, opts *provider.Options) (provider.ISource, error) { /
 				Repo:     repo,
 				Version:  version,
 			}, nil
+		} else if strings.HasPrefix(parts[0], source.CodebergSource) {
+			owner := parts[1]
+			repo := strings.Join(parts[2:], "/")
+
+			return &source.Forgejo{
+				Provider:   provider.Provider{Options: opts, OSConfig: detectedOS},
+				BaseURL:    source.CodebergBaseURL,
+				SourceName: source.CodebergSource,
+				Owner:      owner,
+				Repo:       repo,
+				Version:    version,
+			}, nil
 		}
 
 		for pn, p := range opts.Config.Providers {
 			if pn == parts[0] {
-				if p.Provider == source.GitLabSource {
+				switch p.Provider {
+				case source.GitLabSource:
 					owner := strings.Join(parts[1:len(parts)-1], "/")
 					repo := parts[len(parts)-1]
 
-					s := &source.GitLab{
+					return &source.GitLab{
 						Provider: provider.Provider{Options: opts, OSConfig: detectedOS},
 						BaseURL:  p.BaseURL,
 						Owner:    owner,
 						Repo:     repo,
 						Version:  version,
-					}
-					return s, nil
+					}, nil
+				case source.ForgejoSource:
+					owner := parts[1]
+					repo := strings.Join(parts[2:], "/")
+
+					return &source.Forgejo{
+						Provider:   provider.Provider{Options: opts, OSConfig: detectedOS},
+						BaseURL:    p.BaseURL,
+						SourceName: pn,
+						Owner:      owner,
+						Repo:       repo,
+						Version:    version,
+					}, nil
 				}
 			}
 		}
