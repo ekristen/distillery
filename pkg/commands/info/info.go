@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/apex/log"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
 	"github.com/ekristen/distillery/pkg/common"
 	"github.com/ekristen/distillery/pkg/config"
