@@ -18,7 +18,7 @@ installers or dependencies. **I love homebrew**, but I think there's room for an
 sources. It is designed to be simple and easy to use. It is **NOT** designed to be a package manager or handle complex
 dependencies, that's where homebrew shines.
 
-The goal of this project is to install binaries by leverage the collective power of all the developers out there that
+The goal of this project is to install binaries by leveraging the collective power of all the developers out there that
 are using tools like [goreleaser](https://goreleaser.com/) and [cargo-dist](https://github.com/axodotdev/cargo-dist)
 and many others to pre-compile their software and put their binaries up on GitHub or GitLab.
 
@@ -41,7 +41,7 @@ See full documentation at [Installation](https://dist.sh/installation/)
 
 **Note:** the installation script **DO NOT CURRENTLY** try to modify your path, you will need to do that manually.
 
-### MacOS/Linux
+### macOS/Linux
 ```bash
 curl --proto '=https' --tlsv1.2 -LsSf https://get.dist.sh | sh
 ```
@@ -53,7 +53,7 @@ iwr https://get.dist.sh/install.ps1 -useb | iex
 
 ### Adjust Your Path
 
-#### MacOS/Linux
+#### macOS/Linux
 
 ```bash
 export PATH=$HOME/.distillery/bin:$PATH
@@ -115,7 +115,7 @@ Install a binary from GitLab.
 dist install gitlab/gitlab-org/gitlab-runner
 ```
 
-Often times installing from GitHub or GitLab is sufficient, but if you are on a MacOS system and Homebrew
+Oftentimes installing from GitHub or GitLab is sufficient, but if you are on a macOS system and Homebrew
 has the binary you want, you can install it using the `homebrew` scope. I would generally still recommend just
 installing from GitHub or GitLab directly.
 
@@ -148,7 +148,7 @@ This is the default directory structure that distillery uses. Some of this can b
       - example: `github/ekristen/aws-nuke/v2.15.0/aws-nuke`
       - example: `hashicorp/terraform/v0.14.7/terraform`
 - Cache directory (downloads, http caching)
-  - MacOS `$HOME/Library/Caches/distillery`
+  - macOS `$HOME/Library/Caches/distillery`
   - Linux `$HOME/.cache/distillery`
   - Windows `$HOME/AppData/Local/distillery`
 
@@ -159,6 +159,6 @@ store the ETag and Last-Modified headers from the server to determine if the fil
 used to store the downloaded file. The download cache is not used to determine if the file has changed, that is done
 by the HTTP cache.
 
-If you need to delete your cache simply run `dist info` identify the cache directory and remove it.
+If you need to delete your cache simply run `dist info` to identify the cache directory and remove it.
 
 **Note:** I may add a cache clear command in the future.

@@ -1,6 +1,6 @@
 ## Quickstart
 
-=== "MacOS/Linux"
+=== "macOS/Linux"
     ```bash
     curl --proto '=https' --tlsv1.2 -LsSf https://get.dist.sh | sh
     ```
@@ -60,7 +60,7 @@ Install a binary from GitLab.
 dist install gitlab/gitlab-org/gitlab-runner
 ```
 
-Often times installing from GitHub or GitLab is sufficient, but if you are on a MacOS system and Homebrew
+Often times installing from GitHub or GitLab is sufficient, but if you are on a macOS system and Homebrew
 has the binary you want, you can install it using the `homebrew` scope. I would generally still recommend just
 installing from GitHub or GitLab directly.
 
