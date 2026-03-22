@@ -1,7 +1,7 @@
 version: 2
 release:
   github:
-    owner: ekristen
+    owner: ctaggart
     name: distillery
   prerelease: auto
 env:
