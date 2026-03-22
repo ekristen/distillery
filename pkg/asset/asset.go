@@ -32,6 +32,7 @@ var (
 	certType     = filetype.AddType("cert", "application/x-x509-ca-cert")
 	crtType      = filetype.AddType("crt", "application/x-x509-ca-cert")
 	sigType      = filetype.AddType("sig", "text/plain")
+	minisigType  = filetype.AddType("minisig", "text/plain")
 	pkgType      = filetype.AddType("pkg", "application/octet-stream")
 	sbomJSONType = filetype.AddType("sbom.json", "application/json")
 	bomJSONType  = filetype.AddType("bom.json", "application/json")
@@ -231,7 +232,7 @@ func (a *Asset) Classify(name string) Type { //nolint:gocyclo
 			aType = Archive
 		case matchers.TypeExe:
 			aType = Binary
-		case sigType, ascType:
+		case sigType, ascType, minisigType:
 			aType = Signature
 		case pemType, pubType, certType, crtType:
 			aType = Key
