@@ -35,6 +35,7 @@ func TestAsset(t *testing.T) {
 		{"test.tar.gz", "Test", Archive},
 		{"test.tar.gz.asc", "Test", Signature},
 		{"dist.tar.gz.sig", "dist.tar.gz.sig", Signature},
+		{"minisign-0.12-win64.zip.minisig", "minisign-0.12-win64.zip.minisig", Signature},
 	}
 
 	for _, c := range cases {
@@ -135,6 +136,14 @@ func TestAssetTypes(t *testing.T) {
 		{
 			name:     "dist-linux-amd64.sbom",
 			fileType: SBOM,
+		},
+		{
+			name:     "minisign-0.12-win64.zip.minisig",
+			fileType: Signature,
+		},
+		{
+			name:     "minisign-0.12-linux.tar.gz.minisig",
+			fileType: Signature,
 		},
 	}
 
