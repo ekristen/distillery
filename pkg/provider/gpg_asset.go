@@ -10,8 +10,6 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/rs/zerolog/log"
-
 	"github.com/ekristen/distillery/pkg/asset"
 )
 
@@ -33,10 +31,12 @@ func (a *GPGAsset) Path() string {
 }
 
 func (a *GPGAsset) Download(ctx context.Context) error {
+	logger := a.Options.Logger
+
 	var err error
 	a.KeyID, err = a.MatchedAsset.GetGPGKeyID()
 	if err != nil {
-		log.Trace().Err(err).Msg("unable to get GPG key")
+		logger.Trace().Err(err).Msg("unable to get GPG key")
 		return err
 	}
 
@@ -54,11 +54,11 @@ func (a *GPGAsset) Download(ctx context.Context) error {
 	}
 
 	if stats != nil {
-		log.Debug().Msgf("file already downloaded: %s", assetFile)
+		logger.Debug().Msgf("file already downloaded: %s", assetFile)
 		return nil
 	}
 
-	log.Debug().Msgf("downloading asset: %d", a.KeyID)
+	logger.Debug().Msgf("downloading GPG key: %d", a.KeyID)
 
 	url := fmt.Sprintf("https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x%s", fmt.Sprintf("%X", a.KeyID))
 
@@ -73,7 +73,6 @@ func (a *GPGAsset) Download(ctx context.Context) error {
 	}
 	defer resp.Body.Close()
 
-	// Check if the request was successful
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("failed to download key: server returned status %s", resp.Status)
 	}
@@ -87,27 +86,17 @@ func (a *GPGAsset) Download(ctx context.Context) error {
 
 	multiWriter := io.MultiWriter(tmpFile, hasher)
 
-	f, err := os.Create(assetFile)
-	if err != nil {
-		return err
-	}
-
-	// Write the asset's content to the temporary file
 	_, err = io.Copy(multiWriter, resp.Body)
 	if err != nil {
 		return err
 	}
 
-	if _, err := io.Copy(f, resp.Body); err != nil {
-		return err
-	}
-
-	log.Trace().Msgf("hash: %x", hasher.Sum(nil))
+	logger.Trace().Msgf("hash: %x", hasher.Sum(nil))
 
 	_ = os.WriteFile(assetFileHash, []byte(fmt.Sprintf("%x", hasher.Sum(nil))), 0600)
-	a.Hash = string(hasher.Sum(nil))
+	a.Hash = fmt.Sprintf("%x", hasher.Sum(nil))
 
-	log.Trace().Msgf("Downloaded asset to: %s", tmpFile.Name())
+	logger.Trace().Msgf("Downloaded GPG key to: %s", tmpFile.Name())
 
 	return nil
 }
