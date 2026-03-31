@@ -487,6 +487,7 @@ func (a *Asset) Extract() error {
 	if err != nil {
 		return err
 	}
+	defer fileHandler.Close()
 
 	a.TempDir, err = os.MkdirTemp("", common.NAME)
 	if err != nil {
@@ -533,6 +534,7 @@ func (a *Asset) processDirect(in io.Reader) error {
 	if err != nil {
 		return err
 	}
+	defer outFile.Close()
 
 	if _, err := io.Copy(outFile, in); err != nil {
 		return err
@@ -564,11 +566,13 @@ func (a *Asset) processArchive(ctx context.Context, f archives.FileInfo) error {
 	if err != nil {
 		return err
 	}
+	defer tc.Close()
 
 	nf, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, f.Mode())
 	if err != nil {
 		return err
 	}
+	defer nf.Close()
 
 	// copy over contents
 	if _, err := io.Copy(nf, tc); err != nil {

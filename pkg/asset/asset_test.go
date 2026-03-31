@@ -609,6 +609,54 @@ func TestAssetInstall(t *testing.T) {
 	}
 }
 
+func TestAssetExtractCleanup(t *testing.T) {
+	cases := []struct {
+		name         string
+		downloadFile string
+	}{
+		{
+			name: "archive-tar-gz",
+			downloadFile: createTarGz(t, []internalFile{
+				{
+					name:    "test-binary",
+					mode:    0755,
+					content: []byte{0x7F, 0x45, 0x4C, 0x46},
+				},
+			}),
+		},
+		{
+			name:         "archive-zip",
+			downloadFile: createZip(t, "test-binary", []byte{0x7F, 0x45, 0x4C, 0x46}),
+		},
+		{
+			name:         "direct-file",
+			downloadFile: createFile(t, []byte("binary content")),
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			asset := New("dist-linux-amd64.tar.gz", "dist", "linux", "amd64", "1.0.0")
+			if c.name == "direct-file" {
+				asset = New("dist-linux-amd64", "dist", "linux", "amd64", "1.0.0")
+			}
+			asset.DownloadPath = c.downloadFile
+
+			defer os.RemoveAll(c.downloadFile)
+
+			err := asset.Extract()
+			assert.NoError(t, err)
+			assert.DirExists(t, asset.TempDir)
+
+			// Verify cleanup succeeds — before the fix, this failed on Windows
+			// because Extract left file handles open, preventing deletion.
+			err = asset.Cleanup()
+			assert.NoError(t, err)
+			assert.NoDirExists(t, asset.TempDir)
+		})
+	}
+}
+
 // -- helper functions below --
 
 // createEmptyZip creates an empty zip file
