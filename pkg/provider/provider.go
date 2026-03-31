@@ -633,6 +633,7 @@ func (p *Provider) verifyGPGSignature() error {
 	if err != nil {
 		return err
 	}
+	defer publicKeyContent.Close()
 
 	signatureContent, err := os.ReadFile(signaturePath)
 	if err != nil {

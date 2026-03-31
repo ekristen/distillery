@@ -310,6 +310,19 @@ func (a *Asset) copyFile(srcFile, dstFile string) error {
 	return nil
 }
 
+// createSymlink removes an existing file at linkPath and creates a symlink pointing to target.
+func (a *Asset) createSymlink(target, linkPath string) error {
+	log.Debug().Str("app", a.GetName()).Msgf("creating symlink: %s -> %s", linkPath, target)
+
+	if err := os.Remove(linkPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to remove existing symlink %s: %w", linkPath, err)
+	}
+	if err := os.Symlink(target, linkPath); err != nil {
+		return fmt.Errorf("failed to create symlink %s -> %s: %w", linkPath, target, err)
+	}
+	return nil
+}
+
 // determineInstallable determines if the file is installable or not based on the mimetype
 func (a *Asset) determineInstallable() {
 	log.Trace().Str("app", a.GetName()).Msgf("files to process: %d", len(a.Files))
@@ -366,8 +379,45 @@ func (a *Asset) determineELF(path string) bool {
 
 var versionReplace = regexp.MustCompile(`\d+\.\d+`)
 
+// cleanFilename strips OS, arch, and version info from a filename to produce a clean binary name.
+func (a *Asset) cleanFilename(name string) string {
+	log.Trace().Str("app", a.GetName()).Msgf("pre-dstFilename: %s", name)
+
+	// Strip the OS and Arch from the filename if it exists, this happens mostly when the binary is being
+	// uploaded directly instead of being encapsulated in a tarball or zip file
+	name = strings.ReplaceAll(name, a.OS, "")
+	name = strings.ReplaceAll(name, a.Arch, "")
+
+	osData := osconfig.New(a.OS, a.Arch)
+	for _, osAlias := range osData.GetAliases() {
+		name = strings.ReplaceAll(name, osAlias, "")
+	}
+	for _, osArch := range osData.GetArchitectures() {
+		name = strings.ReplaceAll(name, osArch, "")
+	}
+
+	name = strings.ReplaceAll(name, fmt.Sprintf("v%s", a.Version), "")
+	name = strings.ReplaceAll(name, a.Version, "")
+	name = versionReplace.ReplaceAllString(name, "")
+
+	if a.OS == osconfig.Windows || strings.HasSuffix(name, ".exe") {
+		name = strings.TrimSuffix(name, ".exe")
+	}
+
+	name = strings.TrimSpace(name)
+	name = strings.TrimRight(name, "-")
+	name = strings.TrimRight(name, "_")
+
+	if a.OS == osconfig.Windows {
+		name = fmt.Sprintf("%s.exe", name)
+	}
+
+	log.Trace().Str("app", a.GetName()).Msgf("post-dstFilename: %s", name)
+
+	return name
+}
+
 // Install installs the asset
-// TODO(ek): simplify this function
 func (a *Asset) Install(id, binDir, optDir string) error {
 	found := false
 
@@ -392,39 +442,7 @@ func (a *Asset) Install(id, binDir, optDir string) error {
 			dstFilename = file.Alias
 		}
 
-		log.Trace().Str("app", a.GetName()).Msgf("pre-dstFilename: %s", dstFilename)
-
-		// Strip the OS and Arch from the filename if it exists, this happens mostly when the binary is being
-		// uploaded directly instead of being encapsulated in a tarball or zip file
-		dstFilename = strings.ReplaceAll(dstFilename, a.OS, "")
-		dstFilename = strings.ReplaceAll(dstFilename, a.Arch, "")
-
-		osData := osconfig.New(a.OS, a.Arch)
-		for _, osAlias := range osData.GetAliases() {
-			dstFilename = strings.ReplaceAll(dstFilename, osAlias, "")
-		}
-		for _, osArch := range osData.GetArchitectures() {
-			dstFilename = strings.ReplaceAll(dstFilename, osArch, "")
-		}
-
-		dstFilename = strings.ReplaceAll(dstFilename, fmt.Sprintf("v%s", a.Version), "")
-		dstFilename = strings.ReplaceAll(dstFilename, a.Version, "")
-
-		dstFilename = versionReplace.ReplaceAllString(dstFilename, "")
-
-		if a.OS == osconfig.Windows || strings.HasSuffix(dstFilename, ".exe") {
-			dstFilename = strings.TrimSuffix(dstFilename, ".exe")
-		}
-
-		dstFilename = strings.TrimSpace(dstFilename)
-		dstFilename = strings.TrimRight(dstFilename, "-")
-		dstFilename = strings.TrimRight(dstFilename, "_")
-
-		if a.OS == osconfig.Windows {
-			dstFilename = fmt.Sprintf("%s.exe", dstFilename)
-		}
-
-		log.Trace().Str("app", a.GetName()).Msgf("post-dstFilename: %s", dstFilename)
+		dstFilename = a.cleanFilename(dstFilename)
 
 		destBinaryName := dstFilename
 		// Note: copy to the opt dir for organization
@@ -440,16 +458,14 @@ func (a *Asset) Install(id, binDir, optDir string) error {
 			return err
 		}
 
-		// create symlink
-		// TODO: check if symlink exists
-		// TODO: handle errors
+		// create symlinks
 		if runtime.GOOS == a.OS && runtime.GOARCH == a.Arch {
-			log.Debug().Str("app", a.GetName()).Msgf("creating symlink: %s to %s", defaultBinFilename, destBinFilename)
-			log.Debug().Str("app", a.GetName()).Msgf("creating symlink: %s to %s", versionedBinFilename, destBinFilename)
-			_ = os.Remove(defaultBinFilename)
-			_ = os.Remove(versionedBinFilename)
-			_ = os.Symlink(destBinFilename, defaultBinFilename)
-			_ = os.Symlink(destBinFilename, versionedBinFilename)
+			if err := a.createSymlink(destBinFilename, defaultBinFilename); err != nil {
+				return err
+			}
+			if err := a.createSymlink(destBinFilename, versionedBinFilename); err != nil {
+				return err
+			}
 		}
 	}
 

@@ -13,11 +13,13 @@ type Command struct {
 	Args   []string
 }
 
-var processedFiles = make(map[string]struct{})
-
 // Parse parses the given Distfile and returns a list of commands.
 func Parse(filePath string) ([]Command, error) {
-	if _, processed := processedFiles[filePath]; processed {
+	return parseWithTracking(filePath, make(map[string]struct{}))
+}
+
+func parseWithTracking(filePath string, seen map[string]struct{}) ([]Command, error) {
+	if _, processed := seen[filePath]; processed {
 		return nil, fmt.Errorf("circular inclusion detected: %s", filePath)
 	}
 
@@ -27,7 +29,7 @@ func Parse(filePath string) ([]Command, error) {
 	}
 	defer file.Close()
 
-	processedFiles[filePath] = struct{}{}
+	seen[filePath] = struct{}{}
 
 	var commands []Command
 	scanner := bufio.NewScanner(file)
@@ -52,7 +54,7 @@ func Parse(filePath string) ([]Command, error) {
 			if len(args) != 1 {
 				return nil, fmt.Errorf("file command requires exactly one argument")
 			}
-			subCommands, err := Parse(args[0])
+			subCommands, err := parseWithTracking(args[0], seen)
 			if err != nil {
 				return nil, err
 			}
@@ -65,8 +67,6 @@ func Parse(filePath string) ([]Command, error) {
 	if err := scanner.Err(); err != nil {
 		return nil, err
 	}
-
-	processedFiles = make(map[string]struct{})
 
 	return commands, nil
 }
