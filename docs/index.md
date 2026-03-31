@@ -4,6 +4,10 @@
     ```bash
     curl --proto '=https' --tlsv1.2 -LsSf https://get.dist.sh | sh
     ```
+    OR
+    ```bash
+    wget --https-only --secure-protocol=TLSv1_2 -qO- https://get.dist.sh | sh
+    ```
 
 === "Windows"
     ```powershell
@@ -21,22 +25,37 @@ and [Rust](https://www.rust-lang.org) have made it easy to compile binaries and 
 installers or dependencies. **I love homebrew**, but I think there's room for another tool.
 
 **dist**illery is a tool that is designed to make it easy to install binaries on your system from multiple different
-sources. It is designed to be simple and easy to use. It is **NOT** designed to be a package manager or handle complex
-dependencies, that's where homebrew shines.
+sources. The tool is designed to be straightforward to use. It is **NOT** designed to be a package manager or
+handle complex dependencies, that's where homebrew shines.
 
-The goal of this project is to install binaries by leverage the collective power of all the developers out there that
-are using tools like [goreleaser](https://goreleaser.com/) and [cargo-dist](https://github.com/axodotdev/cargo-dist)
-and many others to pre-compile their software and put their binaries up on GitHub or GitLab.
+The goal of this project is to install binaries by leveraging the collective power of all the developers out there. It
+is now 2025 and more and more developers are using tools like [goreleaser](https://goreleaser.com/) and [cargo-dist](https://github.com/axodotdev/cargo-dist)
+and many others to pre-compile their software and put their binaries up on GitHub or GitLab. Tools like goreleaser are
+expanding to support other languages as well.
+
+Let's take advantage of that and make it easy to install those binaries on your system.
 
 ## Features
 
 - Simple to install binaries on your system from multiple sources
 - No reliance on a centralized repository of metadata like package managers
-- Support multiple platforms and architectures
+- Support for multiple platforms and architectures
 - Support private repositories (this was a feature removed from homebrew)
 - Support checksum verifications (if they exist)
-- Support signatures verifications (if they exist)
+- Support signature verifications (if they exist)
 - [Aliases](config/aliases.md) for easy access to binaries
+
+### Experimental Features
+
+- Caching of GitHub API calls
+
+#### Caching of GitHub API calls
+
+Currently, you have to opt in with an environment variable to enable caching of GitHub API calls and it will only work
+if you are **NOT** using a GitHub Token. I've implemented a simple caching service that will cache the results of
+non-authenticated GitHub API calls to help prevent hitting the rate limit. This is an experimental feature that uses
+a cloud service I wrote. It only works for public repos, I only log hits and misses for debug purposes, no other data
+is kept. `DISTILLERY_USE_CACHE` is the environment variable to enable this feature.
 
 ## Examples
 
@@ -60,9 +79,9 @@ Install a binary from GitLab.
 dist install gitlab/gitlab-org/gitlab-runner
 ```
 
-Often times installing from GitHub or GitLab is sufficient, but if you are on a MacOS system and Homebrew
+Usually installing from GitHub or GitLab is enough, but if you are on a macOS system and Homebrew
 has the binary you want, you can install it using the `homebrew` scope. I would generally still recommend just
-installing from GitHub or GitLab directly.
+installing from GitHub or GitLab directly if it is available, but this is a nice fallback.
 
 ```console
 dist install homebrew/opentofu
@@ -85,11 +104,5 @@ it easy to switch versions.
 Every time you run install it will by default seek out the latest version, it will not remove any other versions. All
 versions are symlinked with the suffix `@version` this means you can have multiple versions installed at the same time.
 
-It also means you can call any version any time using the `@version` syntax or if you are using something like [direnv](https://direnv.net/)
-you can set aliases in your `.envrc` file for specific versions.
-
-#### Example
-
-```console
-alias terraform="terraform@1.8.5"
-```
+It also means you can call any version any time using the `@version` syntax, and then you can always use aliases to
+set specific versions when in specific folders. This is useful for tools like terraform.
