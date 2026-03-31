@@ -15,12 +15,15 @@ and [Rust](https://www.rust-lang.org) have made it easy to compile binaries and 
 installers or dependencies. **I love homebrew**, but I think there's room for another tool.
 
 **dist**illery is a tool that is designed to make it easy to install binaries on your system from multiple different
-sources. It is designed to be simple and easy to use. It is **NOT** designed to be a package manager or handle complex
-dependencies, that's where homebrew shines.
+sources. It is designed to be straightforward and simple to use. It is **NOT** designed to be a package manager or
+handle complex dependencies, that's where homebrew shines.
 
-The goal of this project is to install binaries by leverage the collective power of all the developers out there that
-are using tools like [goreleaser](https://goreleaser.com/) and [cargo-dist](https://github.com/axodotdev/cargo-dist)
-and many others to pre-compile their software and put their binaries up on GitHub or GitLab.
+The goal of this project is to install binaries by leveraging the collective power of all the developers out there. It
+is now 2025 and more and more developers are using tools like [goreleaser](https://goreleaser.com/) and [cargo-dist](https://github.com/axodotdev/cargo-dist)
+and many others to pre-compile their software and put their binaries up on GitHub or GitLab. Tools like goreleaser are
+expanding to support other languages as well.
+
+Let's take advantage of that and make it easy to install those binaries on your system.
 
 ## Documentation
 
@@ -30,10 +33,10 @@ and many others to pre-compile their software and put their binaries up on GitHu
 
 - Simple to install binaries on your system from multiple sources
 - No reliance on a centralized repository of metadata like package managers
-- Support multiple platforms and architectures
+- Support for multiple platforms and architectures
 - Support private repositories (this was a feature removed from homebrew)
 - Support checksum verifications (if they exist)
-- Support signatures verifications (if they exist)
+- Support signature verifications (if they exist)
 
 ## Quickstart
 
@@ -44,6 +47,12 @@ See full documentation at [Installation](https://dist.sh/installation/)
 ### MacOS/Linux
 ```bash
 curl --proto '=https' --tlsv1.2 -LsSf https://get.dist.sh | sh
+```
+
+OR with `wget`
+
+```bash
+wget --https-only --secure-protocol=TLSv1_2 -qO- https://get.dist.sh | sh
 ```
 
 ### Windows
@@ -115,9 +124,9 @@ Install a binary from GitLab.
 dist install gitlab/gitlab-org/gitlab-runner
 ```
 
-Often times installing from GitHub or GitLab is sufficient, but if you are on a MacOS system and Homebrew
+Usually installing from GitHub or GitLab is enough, but if you are on a macOS system and Homebrew
 has the binary you want, you can install it using the `homebrew` scope. I would generally still recommend just
-installing from GitHub or GitLab directly.
+installing from GitHub or GitLab directly if it is available, but this is a nice fallback.
 
 ```console
 dist install homebrew/opentofu
