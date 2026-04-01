@@ -37,7 +37,7 @@ func discover(cwd string) (string, error) {
 }
 
 func Execute(ctx context.Context, c *cli.Command) error { //nolint:gocyclo
-	_ = c.Set("no-spinner", "true")
+	_ = c.Set("output", "text")
 
 	var df string
 	if c.Args().Len() == 0 {

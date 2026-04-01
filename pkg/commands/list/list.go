@@ -48,7 +48,7 @@ func Execute(ctx context.Context, c *cli.Command) error {
 }
 
 func Before(ctx context.Context, c *cli.Command) (context.Context, error) {
-	_ = c.Set("no-spinner", "true")
+	_ = c.Set("output", "text")
 	_ = c.Set("log-caller", "false")
 
 	return common.Before(ctx, c)
