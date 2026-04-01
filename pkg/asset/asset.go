@@ -382,6 +382,20 @@ var versionReplace = regexp.MustCompile(`\d+\.\d+`)
 func (a *Asset) cleanFilename(name string) string {
 	log.Trace().Str("app", a.GetName()).Msgf("pre-dstFilename: %s", name)
 
+	// Strip known archive/compression extensions (e.g. .gz, .tar.gz, .zip) so that
+	// files from compressed-only formats like .gz produce a clean binary name.
+	for {
+		ext := filepath.Ext(name)
+		if ext == "" || len(ext) > 5 || strings.Contains(ext, "_") {
+			break
+		}
+		trimmed := strings.TrimSuffix(name, ext)
+		if trimmed == name {
+			break
+		}
+		name = trimmed
+	}
+
 	// Strip the OS and Arch from the filename if it exists, this happens mostly when the binary is being
 	// uploaded directly instead of being encapsulated in a tarball or zip file
 	name = strings.ReplaceAll(name, a.OS, "")
@@ -532,6 +546,16 @@ func (a *Asset) doExtract(stream io.Reader) error {
 	if ex, ok := format.(archives.Extractor); ok {
 		log.Debug().Str("app", a.GetName()).Msg("extracting archive")
 		if err := ex.Extract(context.TODO(), stream, a.processArchive); err != nil {
+			return err
+		}
+	} else if dc, ok := format.(archives.Decompressor); ok {
+		log.Debug().Str("app", a.GetName()).Msg("decompressing file")
+		rc, err := dc.OpenReader(stream)
+		if err != nil {
+			return err
+		}
+		defer rc.Close()
+		if err := a.processDirect(rc); err != nil {
 			return err
 		}
 	} else {
