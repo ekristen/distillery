@@ -2,12 +2,14 @@ package list
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
 
-	"github.com/pterm/pterm"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/table"
 	"github.com/urfave/cli/v3"
 
 	"github.com/ekristen/distillery/pkg/common"
@@ -23,11 +25,10 @@ func Execute(ctx context.Context, c *cli.Command) error {
 
 	inv := inventory.New(os.DirFS(cfg.GetPath()), cfg.GetPath(), cfg.GetOptPath(), cfg)
 
-	tableData := pterm.TableData{{"Name", "Versions"}}
+	var rows [][]string
 	for _, key := range inv.GetBinsSortedKeys() {
 		bin := inv.Bins[key]
 		versions := bin.ListVersions()
-		// Sort lexicographically
 		sort.Strings(versions)
 		// Reverse to get latest first
 		for i, j := 0, len(versions)-1; i < j; i, j = i+1, j-1 {
@@ -39,10 +40,23 @@ func Execute(ctx context.Context, c *cli.Command) error {
 			displayVersions = versions[:3]
 			extra = " (+" + strconv.Itoa(len(versions)-3) + ")"
 		}
-		tableData = append(tableData, []string{key, strings.Join(displayVersions, ", ") + extra})
+		rows = append(rows, []string{key, strings.Join(displayVersions, ", ") + extra})
 	}
 
-	_ = pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
+	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("6"))
+
+	t := table.New().
+		Headers("Name", "Versions").
+		Rows(rows...).
+		BorderStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("8"))).
+		StyleFunc(func(row, col int) lipgloss.Style {
+			if row == table.HeaderRow {
+				return headerStyle
+			}
+			return lipgloss.NewStyle()
+		})
+
+	fmt.Println(t.Render())
 
 	return nil
 }

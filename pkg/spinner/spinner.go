@@ -2,27 +2,235 @@ package spinner
 
 import (
 	"encoding/json"
+	"fmt"
+	"os"
+	"strings"
 	"sync"
+	"time"
 
-	"github.com/pterm/pterm"
+	"github.com/charmbracelet/bubbles/spinner"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/rs/zerolog"
 )
 
-// SpinnerWriter implements zerolog.LevelWriter and io.Writer for spinner output.
-// Each SpinnerWriter manages its own spinner instance.
-type SpinnerWriter struct {
-	mu       sync.Mutex
-	multi    pterm.MultiPrinter
-	inactive int
-	spinner  map[string]*pterm.SpinnerPrinter
+var (
+	greenStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
+	redStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
+	yellowStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
+	cyanStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
+)
+
+var appColors = []lipgloss.Color{
+	lipgloss.Color("6"),  // cyan
+	lipgloss.Color("5"),  // magenta
+	lipgloss.Color("4"),  // blue
+	lipgloss.Color("3"),  // yellow
+	lipgloss.Color("2"),  // green
+	lipgloss.Color("13"), // bright magenta
+	lipgloss.Color("14"), // bright cyan
+	lipgloss.Color("12"), // bright blue
 }
 
-// NewSpinnerWriter creates a new SpinnerWriter.
-func NewWriter() *SpinnerWriter {
-	return &SpinnerWriter{
-		multi:   pterm.DefaultMultiPrinter,
-		spinner: map[string]*pterm.SpinnerPrinter{},
+// logMsg is sent to the bubbletea program from WriteLevel.
+type logMsg struct {
+	app   string
+	msg   string
+	state string // "", "success", "fail", "warn", "ok", "done"
+}
+
+// deferredQuit is sent after a short delay to allow queued messages to drain.
+type deferredQuit struct{}
+
+// completedLine is a finalized line of output (terminal state reached).
+type completedLine struct {
+	app   string
+	msg   string
+	state string
+}
+
+type appState struct {
+	spinner spinner.Model
+	msg     string
+	done    bool
+}
+
+type model struct {
+	apps      map[string]*appState
+	order     []string
+	appColors map[string]lipgloss.Style
+	completed []completedLine
+	quitting  bool
+}
+
+func newModel() model {
+	return model{
+		apps:      make(map[string]*appState),
+		appColors: make(map[string]lipgloss.Style),
 	}
+}
+
+func (m model) assignColor(app string) {
+	if _, exists := m.appColors[app]; !exists {
+		idx := len(m.appColors) % len(appColors)
+		m.appColors[app] = lipgloss.NewStyle().Bold(true).Foreground(appColors[idx])
+	}
+}
+
+func (m model) Init() tea.Cmd {
+	return nil
+}
+
+func deferQuit() tea.Msg {
+	time.Sleep(50 * time.Millisecond)
+	return deferredQuit{}
+}
+
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case logMsg:
+		as, exists := m.apps[msg.app]
+		if !exists {
+			s := spinner.New(spinner.WithSpinner(spinner.Points))
+			as = &appState{spinner: s}
+			m.apps[msg.app] = as
+			m.order = append(m.order, msg.app)
+			m.assignColor(msg.app)
+
+			as.msg = msg.msg
+			if msg.state != "" {
+				m.completed = append(m.completed, completedLine{
+					app: msg.app, msg: msg.msg, state: msg.state,
+				})
+				if msg.state == "success" || msg.state == "fail" || msg.state == "ok" || msg.state == "done" {
+					as.done = true
+				}
+			}
+
+			cmds := []tea.Cmd{as.spinner.Tick}
+			if m.allDone() && !m.quitting {
+				m.quitting = true
+				cmds = append(cmds, deferQuit)
+			}
+			return m, tea.Batch(cmds...)
+		}
+
+		if msg.state != "" {
+			m.completed = append(m.completed, completedLine{
+				app: msg.app, msg: msg.msg, state: msg.state,
+			})
+			if msg.state == "success" || msg.state == "fail" || msg.state == "ok" || msg.state == "done" {
+				as.done = true
+			}
+		} else {
+			as.msg = msg.msg
+		}
+
+		if m.allDone() && !m.quitting {
+			m.quitting = true
+			return m, deferQuit
+		}
+
+		return m, nil
+
+	case deferredQuit:
+		return m, tea.Quit
+
+	case spinner.TickMsg:
+		var cmds []tea.Cmd
+		for _, key := range m.order {
+			as := m.apps[key]
+			if as.done {
+				continue
+			}
+			var cmd tea.Cmd
+			as.spinner, cmd = as.spinner.Update(msg)
+			if cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+		}
+		return m, tea.Batch(cmds...)
+
+	case tea.KeyMsg:
+		if msg.String() == "ctrl+c" {
+			return m, tea.Quit
+		}
+	}
+
+	return m, nil
+}
+
+func (m model) View() string {
+	var b strings.Builder
+
+	// Render completed lines first (frozen, no longer updated)
+	for _, cl := range m.completed {
+		prefix := m.appColors[cl.app].Render(cl.app) + ": "
+		switch cl.state {
+		case "success":
+			fmt.Fprintf(&b, "%s%s%s\n", greenStyle.Render("✓ "), prefix, greenStyle.Render(cl.msg))
+		case "fail":
+			fmt.Fprintf(&b, "%s%s%s\n", redStyle.Render("✗ "), prefix, cl.msg)
+		case "warn":
+			fmt.Fprintf(&b, "%s%s%s\n", yellowStyle.Render("! "), prefix, cl.msg)
+		case "ok":
+			fmt.Fprintf(&b, "%s%s%s\n", greenStyle.Render("✓ "), prefix, cl.msg)
+		case "hint":
+			fmt.Fprintf(&b, "%s%s%s\n", cyanStyle.Render("? "), prefix, cl.msg)
+		case "done":
+			fmt.Fprintf(&b, "  %s%s\n", prefix, cl.msg)
+		}
+	}
+
+	// Render active spinners
+	for _, key := range m.order {
+		as := m.apps[key]
+		if as.done {
+			continue
+		}
+		prefix := m.appColors[key].Render(key) + ": "
+		fmt.Fprintf(&b, "%s %s%s\n", as.spinner.View(), prefix, as.msg)
+	}
+
+	return b.String()
+}
+
+func (m model) allDone() bool {
+	if len(m.apps) == 0 {
+		return false
+	}
+	for _, as := range m.apps {
+		if !as.done {
+			return false
+		}
+	}
+	return true
+}
+
+// SpinnerWriter implements zerolog.LevelWriter and io.Writer for spinner output.
+type SpinnerWriter struct {
+	mu      sync.Mutex
+	program *tea.Program
+	started bool
+	done    chan struct{}
+}
+
+// NewWriter creates a new SpinnerWriter.
+func NewWriter() *SpinnerWriter {
+	sw := &SpinnerWriter{
+		done: make(chan struct{}),
+	}
+	m := newModel()
+	sw.program = tea.NewProgram(m,
+		tea.WithInput(nil),
+		tea.WithOutput(os.Stderr),
+	)
+	go func() {
+		defer close(sw.done)
+		_, _ = sw.program.Run()
+	}()
+	sw.started = true
+	return sw
 }
 
 // Write implements io.Writer.
@@ -31,75 +239,47 @@ func (sw *SpinnerWriter) Write(p []byte) (n int, err error) {
 }
 
 // WriteLevel implements zerolog.LevelWriter.
-func (sw *SpinnerWriter) WriteLevel(level zerolog.Level, p []byte) (n int, err error) {
-	sw.mu.Lock()
-	defer sw.mu.Unlock()
-
-	// Parse zerolog JSON message
+func (sw *SpinnerWriter) WriteLevel(_ zerolog.Level, p []byte) (n int, err error) {
 	var event map[string]interface{}
-	_ = json.Unmarshal(p, &event)
+	if err := json.Unmarshal(p, &event); err != nil {
+		return len(p), nil
+	}
 
 	msg, _ := event["message"].(string)
 	app, _ := event["app"].(string)
 
 	if app == "" {
-		return 0, nil
+		return len(p), nil
 	}
 
-	if !sw.multi.IsActive {
-		_, _ = sw.multi.Start()
-	}
-
-	var appSpinner *pterm.SpinnerPrinter
-	if app != "" {
-		appSpinner = sw.spinner[app]
-		if appSpinner == nil {
-			var err error
-			appSpinner, err = pterm.DefaultSpinner.WithWriter(sw.multi.NewWriter()).Start(app + ": " + msg)
-			if err != nil {
-				return 0, err
-			}
-			sw.spinner[app] = appSpinner
-		}
-	}
-
-	// Bold the app name if present
-	var prefix string
-	if app != "" {
-		prefix = pterm.Style{pterm.Bold}.Sprint(app) + ": "
-	}
-	fullMsg := prefix + msg
-
-	appSpinner.UpdateText(fullMsg)
-
-	// Handle completion states
+	var state string
 	switch {
 	case event["success"] == true:
-		appSpinner.Success(fullMsg)
+		state = "success"
 	case event["fail"] == true:
-		appSpinner.Fail(fullMsg)
+		state = "fail"
 	case event["warn"] == true:
-		appSpinner.Warning(fullMsg)
+		state = "warn"
 	case event["ok"] == true:
-		appSpinner.InfoPrinter = &pterm.PrefixPrinter{
-			MessageStyle: &pterm.Style{pterm.FgLightGreen},
-			Prefix: pterm.Prefix{
-				Style: &pterm.Style{pterm.FgBlack, pterm.BgLightGreen},
-				Text:  "OK",
-			},
-		}
-		appSpinner.Info(fullMsg)
+		state = "ok"
+	case event["hint"] == true:
+		state = "hint"
 	case event["done"] == true:
-		_ = appSpinner.Stop()
+		state = "done"
 	}
 
-	if !appSpinner.IsActive {
-		sw.inactive++
-	}
-
-	if sw.multi.IsActive && sw.inactive == len(sw.spinner) {
-		_, _ = sw.multi.Stop()
-	}
+	sw.program.Send(logMsg{
+		app:   app,
+		msg:   msg,
+		state: state,
+	})
 
 	return len(p), nil
+}
+
+// Wait blocks until the spinner program exits.
+func (sw *SpinnerWriter) Wait() {
+	if sw.started {
+		<-sw.done
+	}
 }

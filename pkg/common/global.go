@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"sync"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -21,6 +22,22 @@ const (
 	OutputText    = "text"
 	OutputJSON    = "json"
 )
+
+var (
+	outputMu     sync.Mutex
+	outputWriter io.Writer
+	outputMode   string
+)
+
+// WaitForOutput blocks until any active spinner output completes.
+func WaitForOutput() {
+	outputMu.Lock()
+	sw, ok := outputWriter.(*spinner.SpinnerWriter)
+	outputMu.Unlock()
+	if ok && sw != nil {
+		sw.Wait()
+	}
+}
 
 func Flags() []cli.Flag {
 	globalFlags := []cli.Flag{
@@ -113,7 +130,16 @@ func Before(ctx context.Context, c *cli.Command) (context.Context, error) {
 		}
 	}
 
-	var outputWriter io.Writer
+	outputMu.Lock()
+	defer outputMu.Unlock()
+
+	// Reuse the existing writer if the mode hasn't changed (e.g. sub-commands
+	// calling Before again during parallel installs).
+	if outputWriter != nil && outputMode == mode {
+		log.Logger = newLogger(ctx, c, outputWriter)
+		return ctx, nil
+	}
+
 	switch mode {
 	case OutputSpinner:
 		outputWriter = spinner.NewWriter()
@@ -125,12 +151,16 @@ func Before(ctx context.Context, c *cli.Command) (context.Context, error) {
 		// debug/trace levels or any unrecognized mode
 		outputWriter = zerolog.ConsoleWriter{Out: os.Stdout}
 	}
+	outputMode = mode
 
-	if c.Bool("log-caller") {
-		log.Logger = zerolog.New(outputWriter).With().Ctx(ctx).Timestamp().Caller().Logger()
-	} else {
-		log.Logger = zerolog.New(outputWriter).With().Ctx(ctx).Timestamp().Logger()
-	}
+	log.Logger = newLogger(ctx, c, outputWriter)
 
 	return ctx, nil
+}
+
+func newLogger(ctx context.Context, c *cli.Command, w io.Writer) zerolog.Logger {
+	if c.Bool("log-caller") {
+		return zerolog.New(w).With().Ctx(ctx).Timestamp().Caller().Logger()
+	}
+	return zerolog.New(w).With().Ctx(ctx).Timestamp().Logger()
 }
