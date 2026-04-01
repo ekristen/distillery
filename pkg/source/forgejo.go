@@ -6,10 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/apex/log"
 	"github.com/gregjones/httpcache"
 	"github.com/gregjones/httpcache/diskcache"
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 
 	"github.com/ekristen/distillery/pkg/asset"
 	"github.com/ekristen/distillery/pkg/clients/forgejo"
@@ -135,17 +134,17 @@ func (s *Forgejo) findReleaseInList(ctx context.Context, includePreReleases bool
 	if err != nil {
 		if strings.Contains(err.Error(), "404") {
 			if s.Options.Settings["forgejo-token"].(string) == "" {
-				log.Warn("no authentication token provided, a 404 error may be due to permissions")
+				log.Warn().Msg("no authentication token provided, a 404 error may be due to permissions")
 			}
 		}
 		return nil, err
 	}
 
 	for _, r := range releases {
-		logrus.
-			WithField("owner", s.GetOwner()).
-			WithField("repo", s.GetRepo()).
-			Tracef("found release: %s", r.TagName)
+		log.Trace().
+			Str("owner", s.GetOwner()).
+			Str("repo", s.GetRepo()).
+			Msgf("found release: %s", r.TagName)
 
 		if s.Version == provider.VersionLatest && includePreReleases && r.Prerelease {
 			s.Version = strings.TrimPrefix(r.TagName, "v")

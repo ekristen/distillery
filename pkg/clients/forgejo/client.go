@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 
 	"github.com/ekristen/distillery/pkg/common"
 )
@@ -43,7 +43,7 @@ func (c *Client) GetClient() *http.Client {
 }
 
 func (c *Client) doRequest(ctx context.Context, url string) (*http.Response, error) {
-	logrus.Tracef("GET %s", url)
+	log.Trace().Msgf("GET %s", url)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, http.NoBody)
 	if err != nil {
