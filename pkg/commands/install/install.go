@@ -57,6 +57,7 @@ func Execute(c *cli.Context) error { //nolint:gocyclo,funlen
 			"version":              c.String("version"),
 			"github-token":         c.String("github-token"),
 			"gitlab-token":         c.String("gitlab-token"),
+			"forgejo-token":        c.String("forgejo-token"),
 			"no-signature-verify":  c.Bool("no-signature-verify"),
 			"no-checksum-verify":   c.Bool("no-checksum-verify"),
 			"no-score-check":       c.Bool("no-score-check"),
@@ -219,6 +220,12 @@ func Flags() []cli.Flag {
 			Name:     "gitlab-token",
 			Usage:    "GitLab token to use for GitLab API requests",
 			EnvVars:  []string{"DISTILLERY_GITLAB_TOKEN"},
+			Category: "Authentication",
+		},
+		&cli.StringFlag{
+			Name:     "forgejo-token",
+			Usage:    "Forgejo token to use for Forgejo/Codeberg API requests",
+			EnvVars:  []string{"DISTILLERY_FORGEJO_TOKEN"},
 			Category: "Authentication",
 		},
 		&cli.BoolFlag{
