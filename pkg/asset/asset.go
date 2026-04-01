@@ -40,6 +40,7 @@ var (
 	sbomType     = filetype.AddType("sbom", "application/octet-stream")
 	bomType      = filetype.AddType("bom", "application/octet-stream")
 	pubType      = filetype.AddType("pub", "text/plain")
+	proofType    = filetype.AddType("proof", "application/octet-stream")
 	tarGzType    = filetype.AddType("tgz", "application/tar+gzip")
 	zstdType     = filetype.AddType("zst", "application/zstd")
 
@@ -232,7 +233,7 @@ func (a *Asset) Classify(name string) Type { //nolint:gocyclo
 			aType = Archive
 		case matchers.TypeExe:
 			aType = Binary
-		case sigType, ascType:
+		case sigType, ascType, proofType:
 			aType = Signature
 		case pemType, pubType, certType, crtType:
 			aType = Key
@@ -585,9 +586,9 @@ func (a *Asset) processDirect(in io.Reader) error {
 }
 
 func (a *Asset) processArchive(ctx context.Context, f archives.FileInfo) error {
-	// do something with the file here; or, if you only want a specific file or directory,
-	// just return until you come across the desired f.NameInArchive value(s)
-	target := filepath.Join(a.TempDir, f.Name())
+	// Use NameInArchive for the full path within the archive;
+	// f.Name() only returns the base name which causes collisions with directories.
+	target := filepath.Join(a.TempDir, f.NameInArchive)
 	log.Trace().Str("app", a.GetName()).Msgf("zip > target %s", target)
 
 	if f.Mode().IsDir() {
@@ -599,6 +600,13 @@ func (a *Asset) processArchive(ctx context.Context, f archives.FileInfo) error {
 		}
 
 		return nil
+	}
+
+	// Ensure parent directory exists (some archives don't have explicit directory entries)
+	if dir := filepath.Dir(target); dir != "" {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return err
+		}
 	}
 
 	tc, err := f.Open()
@@ -616,7 +624,7 @@ func (a *Asset) processArchive(ctx context.Context, f archives.FileInfo) error {
 		return err
 	}
 
-	a.Files = append(a.Files, &File{Name: f.Name()})
+	a.Files = append(a.Files, &File{Name: f.NameInArchive})
 
 	log.Trace().Str("app", a.GetName()).Msgf("zip > create file %s", target)
 
