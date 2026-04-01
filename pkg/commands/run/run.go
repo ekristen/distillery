@@ -11,6 +11,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 
+	"github.com/ekristen/distillery/pkg/commands/install"
 	"github.com/ekristen/distillery/pkg/common"
 	"github.com/ekristen/distillery/pkg/config"
 	"github.com/ekristen/distillery/pkg/distfile"
@@ -36,9 +37,7 @@ func discover(cwd string) (string, error) {
 	return "", errors.New("no Distfile found in current directory or $HOME")
 }
 
-func Execute(ctx context.Context, c *cli.Command) error { //nolint:gocyclo
-	_ = c.Set("output", "text")
-
+func Execute(ctx context.Context, c *cli.Command) error { //nolint:gocyclo,funlen
 	var df string
 	if c.Args().Len() == 0 {
 		// Check current working directory
@@ -72,8 +71,6 @@ func Execute(ctx context.Context, c *cli.Command) error { //nolint:gocyclo
 		return err
 	}
 
-	instCmd := common.GetCommand("install")
-
 	parallel := c.Int("parallel")
 
 	if parallel > 1 {
@@ -93,8 +90,29 @@ func Execute(ctx context.Context, c *cli.Command) error { //nolint:gocyclo
 				sem <- struct{}{}
 				defer func() { <-sem }()
 
-				args := append([]string{"install"}, command.Args...)
-				if installErr := instCmd.Run(ctx, args); installErr != nil {
+				// Build install options from the distfile command args and
+				// inherit shared settings from the run command's CLI flags.
+				app := command.Args[0]
+
+				opts := &install.Options{
+					App:                app,
+					Version:            "latest",
+					OS:                 c.String("os"),
+					Arch:               c.String("arch"),
+					Force:              c.Bool("force"),
+					Config:             cfg,
+					GitHubToken:        c.String("github-token"),
+					GitLabToken:        c.String("gitlab-token"),
+					NoSignatureVerify:  c.Bool("no-signature-verify"),
+					NoChecksumVerify:   c.Bool("no-checksum-verify"),
+					NoScoreCheck:       c.Bool("no-score-check"),
+					IncludePreReleases: c.Bool("include-pre-releases"),
+					UseDistCache:       c.Bool("use-dist-cache"),
+					DistCacheURL:       c.String("dist-cache-url"),
+					Logger:             log.Logger,
+				}
+
+				if installErr := install.DoInstall(ctx, opts); installErr != nil {
 					errCh <- installErr
 				}
 			}(i, command)
@@ -145,7 +163,7 @@ func init() {
 		Description: `run a Distfile to install binaries`,
 		Action:      Execute,
 		Before:      common.Before,
-		Flags:       append(flags, common.Flags()...),
+		Flags:       append(flags, install.Flags()...),
 	}
 
 	common.RegisterCommand(cmd)

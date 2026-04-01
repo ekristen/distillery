@@ -56,4 +56,6 @@ func main() {
 	if err := app.Run(ctx, os.Args); err != nil {
 		log.Error().Bool("fail", true).Err(err).Msgf("command failed: %s", err.Error())
 	}
+
+	common.WaitForOutput()
 }

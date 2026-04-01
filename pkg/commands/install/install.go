@@ -7,123 +7,67 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"time"
+	"sync"
 
 	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v3"
 
 	"github.com/ekristen/distillery/pkg/common"
 	"github.com/ekristen/distillery/pkg/config"
-	"github.com/ekristen/distillery/pkg/inventory"
-	"github.com/ekristen/distillery/pkg/provider"
 )
 
-func Execute(ctx context.Context, c *cli.Command) error { //nolint:funlen
-	startTime := time.Now().UTC()
-
-	appName := c.Args().First()
-
-	logger := log.Logger.With().Str("app", appName).Logger()
-
-	logger.Info().Msg("starting installation")
-
+func Execute(ctx context.Context, c *cli.Command) error {
 	cfg, err := config.New(c.String("config"))
 	if err != nil {
-		logger.Error().Bool("fail", true).Err(err).Msgf("failed to load configuration: %s", err)
+		log.Error().Bool("fail", true).Err(err).Msgf("failed to load configuration: %s", err)
 		return err
 	}
 
 	if err := cfg.MkdirAll(); err != nil {
-		logger.Error().Bool("fail", true).Err(err).Msgf("failed to create directories: %s", err)
+		log.Error().Bool("fail", true).Err(err).Msgf("failed to create directories: %s", err)
 		return err
 	}
 
-	inv := inventory.New(os.DirFS(cfg.BinPath), cfg.BinPath, cfg.GetOptPath(), cfg)
+	apps := c.Args().Slice()
 
-	name := c.Args().First()
-	nameParts := strings.Split(name, "@")
-	alias := cfg.GetAlias(nameParts[0])
-	if alias != nil {
-		name = alias.Name
-		version := alias.Version
-		if len(nameParts) > 1 {
-			if version != "latest" {
-				logger.Warn().Msg("version specified via cli and alias, ignoring alias version")
+	// Single app: run directly
+	if len(apps) == 1 {
+		opts := OptionsFromCLI(c, cfg)
+		return DoInstall(ctx, opts)
+	}
+
+	// Multiple apps: run concurrently
+	var wg sync.WaitGroup
+	errCh := make(chan error, len(apps))
+
+	for _, app := range apps {
+		wg.Add(1)
+		go func(app string) {
+			defer wg.Done()
+			opts := OptionsFromCLI(c, cfg)
+			opts.App = app
+			// Parse version from app@version
+			parts := strings.SplitN(app, "@", 2)
+			if len(parts) == 2 {
+				opts.App = parts[0]
+				opts.Version = parts[1]
 			}
-			version = nameParts[1]
-		}
-
-		_ = c.Set("version", version)
-
-		name = fmt.Sprintf("%s@%s", name, version)
+			if err := DoInstall(ctx, opts); err != nil {
+				errCh <- err
+			}
+		}(app)
 	}
 
-	if c.Bool("use-dist-cache") {
-		logger.Warn().Msg("[EXPERIMENTAL FEATURE] using distillery pass-through cache, this may not work as expected")
+	wg.Wait()
+	close(errCh)
+
+	var errs []error
+	for err := range errCh {
+		errs = append(errs, err)
 	}
-	logger.Info().Msg("preparing source")
-
-	src, err := NewSource(name, &provider.Options{
-		OS:     c.String("os"),
-		Arch:   c.String("arch"),
-		Config: cfg,
-		Logger: logger,
-		Settings: map[string]interface{}{
-			"version":              c.String("version"),
-			"github-token":         c.String("github-token"),
-			"gitlab-token":         c.String("gitlab-token"),
-			"forgejo-token":        c.String("forgejo-token"),
-			"no-signature-verify":  c.Bool("no-signature-verify"),
-			"no-checksum-verify":   c.Bool("no-checksum-verify"),
-			"no-score-check":       c.Bool("no-score-check"),
-			"include-pre-releases": c.Bool("include-pre-releases"),
-			"use-dist-cache":       c.Bool("use-dist-cache"),
-			"dist-cache-url":       c.String("dist-cache-url"),
-		},
-	})
-
-	if err != nil {
-		logger.Error().Bool("fail", true).Msgf("failed to create source: %s", err.Error())
-		return err
+	if len(errs) > 0 {
+		return fmt.Errorf("%d of %d installs failed", len(errs), len(apps))
 	}
-
-	if c.String("version") == common.Latest {
-		logger.Info().Msg("resolving latest version")
-	}
-
-	if err := src.PreRun(ctx); err != nil {
-		logger.Error().Bool("fail", true).Err(err).Msgf("%s", err)
-		return err
-	}
-
-	logger.Info().Err(err).Msgf("downloading version %s", src.GetVersion())
-
-	if !c.Bool("force") {
-		var installedVersion *inventory.Version
-
-		if c.String("version") == common.Latest {
-			installedVersion = inv.GetLatestVersion(fmt.Sprintf("%s/%s", src.GetSource(), src.GetApp()))
-		} else {
-			installedVersion = inv.GetBinVersion(fmt.Sprintf("%s/%s", src.GetSource(), src.GetApp()), c.String("version"))
-		}
-
-		if installedVersion != nil && installedVersion.Version == src.GetVersion() {
-			logger.Warn().Bool("ok", true).Msgf("version %s is already installed (reinstall with --force)", src.GetVersion())
-			return nil
-		}
-	}
-
-	logger.Info().Msgf("installing version %s", src.GetVersion())
-
-	if err := src.Run(ctx); err != nil {
-		logger.Error().Bool("fail", true).Err(err).Msgf("installation failed: %s", err)
-		return err
-	}
-
-	endTime := time.Now().UTC()
-	elapsed := endTime.Sub(startTime)
-
-	logger.Info().Bool("success", true).Msgf("successfully installed version %s in %s", src.GetVersion(), elapsed)
 
 	return nil
 }
@@ -139,8 +83,6 @@ func Before(ctx context.Context, c *cli.Command) (context.Context, error) {
 				return ctx, fmt.Errorf("flags must be specified before the binary(ies)")
 			}
 		}
-
-		return ctx, fmt.Errorf("currently only one binary can be installed at a time")
 	}
 
 	parts := strings.Split(c.Args().First(), "@")
@@ -229,7 +171,7 @@ func Flags() []cli.Flag { //nolint:funlen
 		&cli.StringFlag{
 			Name:     "forgejo-token",
 			Usage:    "Forgejo token to use for Forgejo/Codeberg API requests",
-			EnvVars:  []string{"DISTILLERY_FORGEJO_TOKEN"},
+			Sources:  cli.EnvVars("DISTILLERY_FORGEJO_TOKEN"),
 			Category: "Authentication",
 		},
 		&cli.BoolFlag{
