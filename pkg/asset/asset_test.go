@@ -121,6 +121,10 @@ func TestAssetTypes(t *testing.T) {
 			fileType: Installer,
 		},
 		{
+			name:     "dist-linux-amd64.tar.gz.proof",
+			fileType: Signature,
+		},
+		{
 			name:     "dist-linux-amd64.sbom.json",
 			fileType: SBOM,
 		},
@@ -476,6 +480,33 @@ func TestAssetInstall(t *testing.T) {
 			downloadFile: createFile(t, []byte{0xFE, 0xED, 0xFA, 0xCE}),
 			expectedFiles: []string{
 				"test",
+			},
+		},
+		{
+			name:    "age-v1.2.0-linux-amd64.tar.gz",
+			os:      "linux",
+			arch:    "amd64",
+			version: "1.2.0",
+			downloadFile: createTarGz(t, []internalFile{
+				{
+					name:    "age/age",
+					mode:    0755,
+					content: []byte{0x7F, 0x45, 0x4C, 0x46},
+				},
+				{
+					name:    "age/age-keygen",
+					mode:    0755,
+					content: []byte{0x7F, 0x45, 0x4C, 0x46},
+				},
+				{
+					name:    "age/LICENSE",
+					mode:    0644,
+					content: []byte("license text"),
+				},
+			}),
+			expectedFiles: []string{
+				"age",
+				"age-keygen",
 			},
 		},
 		{

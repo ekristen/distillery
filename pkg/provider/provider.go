@@ -375,7 +375,7 @@ func (p *Provider) discoverSignature(version string) error { //nolint:gocyclo
 			continue
 		}
 
-		ext := []string{"sig", "asc", "sig.asc", "gpg", "keyless.sig"}
+		ext := []string{"sig", "asc", "sig.asc", "gpg", "keyless.sig", "proof"}
 		var detectedOS []string
 		var arch []string
 
