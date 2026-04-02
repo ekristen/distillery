@@ -30,12 +30,17 @@ var (
 )
 
 // WaitForOutput blocks until any active spinner output completes.
+// If the spinner was never used (no messages sent), it is stopped immediately.
 func WaitForOutput() {
 	outputMu.Lock()
 	sw, ok := outputWriter.(*spinner.SpinnerWriter)
 	outputMu.Unlock()
 	if ok && sw != nil {
-		sw.Wait()
+		if sw.HasApps() {
+			sw.Wait()
+		} else {
+			sw.Stop()
+		}
 	}
 }
 
