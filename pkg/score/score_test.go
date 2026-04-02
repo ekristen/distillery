@@ -109,7 +109,7 @@ func TestScore(t *testing.T) {
 			expected: []Sorted{
 				{
 					Key:   "dist-linux-amd64.pem",
-					Value: 109,
+					Value: 89, // os(40) + arch(30) + ext(20) + accuracy(-1)
 				},
 			},
 		},
@@ -226,6 +226,29 @@ func TestScore(t *testing.T) {
 			},
 		},
 		{
+			name: "invalid-library-penalty",
+			names: []string{
+				"dist-linux-amd64-musl",
+				"dist-linux-amd64",
+			},
+			opts: &Options{
+				OS:             []string{"linux"},
+				Arch:           []string{"amd64"},
+				Extensions:     []string{""},
+				InvalidLibrary: []string{"musl"},
+			},
+			expected: []Sorted{
+				{
+					Key:   "dist-linux-amd64",
+					Value: 69, // os(40) + arch(30) + accuracy(-1)
+				},
+				{
+					Key:   "dist-linux-amd64-musl",
+					Value: 34, // os(40) + arch(30) + invalidlib(-30) + accuracy(-6)
+				},
+			},
+		},
+		{
 			name: "weighted-terms-custom-weights",
 			names: []string{
 				"dist-source-linux-amd64.tar.gz",
@@ -267,10 +290,9 @@ func TestScore(t *testing.T) {
 					Value: 69, // os-"darwin"(40) + arch(30) + accuracy(-1)
 				},
 				{
-					// BUG: "mac" substring matches inside "machine", giving +40 OS score
-					// After segment-based refactor this should NOT match
+					// FIXED: "mac" no longer matches inside "machine" with segment matching
 					Key:   "machine-linux-amd64",
-					Value: 22, // os-"mac"(40) + arch(30) + invalidOS-"linux"(-40) + accuracy(-8)
+					Value: -18, // no OS match + arch(30) + invalidOS-"linux"(-40) + accuracy(-8)
 				},
 			},
 		},
@@ -289,13 +311,12 @@ func TestScore(t *testing.T) {
 			expected: []Sorted{
 				{
 					Key:   "tool-windows-amd64.exe",
-					Value: 129, // os-"windows"(40) + os-"win"(40) + arch(30) + ext(20) + accuracy(-1)
+					Value: 89, // os-"windows"(40) + arch(30) + ext(20) + accuracy(-1)
 				},
 				{
-					// BUG: "win" substring matches inside "winding", giving +40 OS score
-					// After segment-based refactor this should NOT match
+					// FIXED: "win" no longer matches inside "winding" with segment matching
 					Key:   "winding-linux-amd64",
-					Value: 22, // os-"win"(40) + arch(30) + invalidOS-"linux"(-40) + accuracy(-8)
+					Value: -18, // no OS match + arch(30) + invalidOS-"linux"(-40) + accuracy(-8)
 				},
 			},
 		},
