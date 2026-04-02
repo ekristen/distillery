@@ -4,13 +4,9 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
-	"io"
-	"net/http"
-	"os"
 	"path/filepath"
 
 	"github.com/ekristen/distillery/pkg/asset"
-	"github.com/ekristen/distillery/pkg/common"
 	"github.com/ekristen/distillery/pkg/provider"
 )
 
@@ -34,64 +30,8 @@ func (a *HTTPAsset) Path() string {
 
 func (a *HTTPAsset) Download(ctx context.Context) error {
 	logger := a.Source.GetOptions().Logger
-
-	downloadsDir := a.Source.GetOptions().Config.GetDownloadsPath()
-	filename := filepath.Base(a.URL)
-
-	assetFile := filepath.Join(downloadsDir, filename)
-	a.DownloadPath = assetFile
-	a.Extension = filepath.Ext(a.DownloadPath)
-
-	assetFileHash := assetFile + ".sha256"
-	stats, err := os.Stat(assetFileHash)
-	if err != nil && !os.IsNotExist(err) {
-		return err
-	}
-
-	if stats != nil {
-		logger.Debug().Msg("file already downloaded")
-		return nil
-	}
-
-	logger.Debug().Msgf("downloading asset: %s", a.URL)
-
-	req, err := http.NewRequestWithContext(ctx, "GET", a.URL, http.NoBody)
-	if err != nil {
-		return err
-	}
-	req.Header.Add("User-Agent", fmt.Sprintf("%s/%s", common.NAME, common.AppVersion))
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	hasher := sha256.New()
-	tmpFile, err := os.Create(assetFile)
-	if err != nil {
-		return err
-	}
-	defer tmpFile.Close()
-
-	multiWriter := io.MultiWriter(tmpFile, hasher)
-
-	// Write the asset's content to the file and hasher simultaneously
-	_, err = io.Copy(multiWriter, resp.Body)
-	if err != nil {
-		return err
-	}
-
-	logger.Trace().Msgf("hash: %x", hasher.Sum(nil))
-
-	_ = os.WriteFile(assetFileHash, []byte(fmt.Sprintf("%x", hasher.Sum(nil))), 0600)
-	a.Hash = string(hasher.Sum(nil))
-
-	logger.Trace().Msgf("Downloaded asset to: %s", tmpFile.Name())
-
-	return nil
+	return asset.DownloadHTTP(ctx, a.Asset, a.URL,
+		a.Source.GetOptions().Config.GetDownloadsPath(),
+		filepath.Base(a.URL),
+		&logger, nil)
 }
