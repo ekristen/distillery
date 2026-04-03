@@ -104,7 +104,6 @@ func (c *Client) GetLatestRelease(ctx context.Context, slug string) (*Release, e
 func (c *Client) GetRelease(ctx context.Context, slug, version string) (*Release, error) {
 	releaseURL := fmt.Sprintf("%s/projects/%s/releases/%s", c.baseURL, url.QueryEscape(slug), url.QueryEscape(version))
 	log.Trace().Msgf("GET %s", releaseURL)
-	fmt.Println(releaseURL)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", releaseURL, http.NoBody)
 	if err != nil {

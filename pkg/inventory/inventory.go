@@ -1,6 +1,7 @@
 package inventory
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -63,11 +64,17 @@ func (i *Inventory) AddVersion(path, target string) error {
 	relativeBin = filepath.ToSlash(relativeBin)
 
 	relativeParts := strings.Split(relativeBin, "/") // note: using / because we are standardizing via ToSlash
+	if len(relativeParts) < 3 {
+		return fmt.Errorf("invalid binary path structure (expected source/owner/repo): %s", relativeBin)
+	}
 	baseSource := filepath.ToSlash(filepath.Join(relativeParts[:3]...))
 
 	if i.Bins[baseSource] == nil {
 		src := strings.TrimPrefix(strings.TrimPrefix(target, i.config.GetOptPath()), "/")
 		parts := strings.Split(src, "/")
+		if len(parts) < 3 {
+			return fmt.Errorf("invalid source path structure (expected source/owner/repo): %s", src)
+		}
 
 		i.Bins[baseSource] = &Bin{
 			Name:     binName,

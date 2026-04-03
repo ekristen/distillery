@@ -589,9 +589,35 @@ func (a *Asset) processDirect(in io.Reader) error {
 }
 
 func (a *Asset) processArchive(ctx context.Context, f archives.FileInfo) error {
+	// Reject symlinks to prevent symlink attacks
+	if f.Mode()&os.ModeSymlink != 0 {
+		log.Warn().Str("app", a.GetName()).Msgf("skipping symlink in archive: %s", f.NameInArchive)
+		return nil
+	}
+
+	// Validate path does not escape TempDir (zip slip protection)
+	cleanName := filepath.Clean(f.NameInArchive)
+	if filepath.IsAbs(cleanName) || strings.HasPrefix(cleanName, "..") {
+		return fmt.Errorf("archive member path escapes extraction directory: %s", f.NameInArchive)
+	}
+
 	// Use NameInArchive for the full path within the archive;
 	// f.Name() only returns the base name which causes collisions with directories.
-	target := filepath.Join(a.TempDir, f.NameInArchive)
+	target := filepath.Join(a.TempDir, cleanName)
+
+	// Double-check resolved path is within TempDir
+	absTarget, err := filepath.Abs(target)
+	if err != nil {
+		return fmt.Errorf("failed to resolve archive member path: %w", err)
+	}
+	absTempDir, err := filepath.Abs(a.TempDir)
+	if err != nil {
+		return fmt.Errorf("failed to resolve temp directory path: %w", err)
+	}
+	if !strings.HasPrefix(absTarget, absTempDir+string(filepath.Separator)) && absTarget != absTempDir {
+		return fmt.Errorf("archive member path escapes extraction directory: %s", f.NameInArchive)
+	}
+
 	log.Trace().Str("app", a.GetName()).Msgf("zip > target %s", target)
 
 	if f.Mode().IsDir() {
@@ -618,7 +644,9 @@ func (a *Asset) processArchive(ctx context.Context, f archives.FileInfo) error {
 	}
 	defer tc.Close()
 
-	nf, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, f.Mode())
+	// Mask setuid/setgid/sticky bits from archive permissions
+	mode := f.Mode() & 0777
+	nf, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, mode)
 	if err != nil {
 		return err
 	}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/rs/zerolog/log"
 
@@ -74,7 +75,7 @@ func (c *Client) ListReleases(ctx context.Context, owner, repo string) ([]*Relea
 	const pageSize = 50
 	for page := 1; ; page++ {
 		url := fmt.Sprintf("%s/repos/%s/%s/releases?limit=%d&page=%d",
-			c.baseURL, owner, repo, pageSize, page)
+			c.baseURL, url.PathEscape(owner), url.PathEscape(repo), pageSize, page)
 
 		resp, err := c.doRequest(ctx, url)
 		if err != nil {
@@ -99,7 +100,7 @@ func (c *Client) ListReleases(ctx context.Context, owner, repo string) ([]*Relea
 }
 
 func (c *Client) GetLatestRelease(ctx context.Context, owner, repo string) (*Release, error) {
-	url := fmt.Sprintf("%s/repos/%s/%s/releases/latest", c.baseURL, owner, repo)
+	url := fmt.Sprintf("%s/repos/%s/%s/releases/latest", c.baseURL, url.PathEscape(owner), url.PathEscape(repo))
 
 	resp, err := c.doRequest(ctx, url)
 	if err != nil {
@@ -116,7 +117,7 @@ func (c *Client) GetLatestRelease(ctx context.Context, owner, repo string) (*Rel
 }
 
 func (c *Client) GetRelease(ctx context.Context, owner, repo, tag string) (*Release, error) {
-	url := fmt.Sprintf("%s/repos/%s/%s/releases/tags/%s", c.baseURL, owner, repo, tag)
+	url := fmt.Sprintf("%s/repos/%s/%s/releases/tags/%s", c.baseURL, url.PathEscape(owner), url.PathEscape(repo), url.PathEscape(tag))
 
 	resp, err := c.doRequest(ctx, url)
 	if err != nil {
