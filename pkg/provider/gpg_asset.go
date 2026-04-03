@@ -67,7 +67,7 @@ func (a *GPGAsset) Download(ctx context.Context) error {
 		return fmt.Errorf("failed to download key: %w", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) //nolint:gosec // URL hardcoded to Ubuntu keyserver, only key ID varies
 	if err != nil {
 		return err
 	}

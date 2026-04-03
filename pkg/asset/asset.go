@@ -545,14 +545,15 @@ func (a *Asset) doExtract(stream io.Reader) error {
 
 	log.Debug().Str("app", a.GetName()).Msgf("identified archive format: %s", format)
 
-	if ex, ok := format.(archives.Extractor); ok {
+	switch f := format.(type) {
+	case archives.Extractor:
 		log.Debug().Str("app", a.GetName()).Msg("extracting archive")
-		if err := ex.Extract(context.TODO(), stream, a.processArchive); err != nil {
+		if err := f.Extract(context.TODO(), stream, a.processArchive); err != nil {
 			return err
 		}
-	} else if dc, ok := format.(archives.Decompressor); ok {
+	case archives.Decompressor:
 		log.Debug().Str("app", a.GetName()).Msg("decompressing file")
-		rc, err := dc.OpenReader(stream)
+		rc, err := f.OpenReader(stream)
 		if err != nil {
 			return err
 		}
@@ -560,7 +561,7 @@ func (a *Asset) doExtract(stream io.Reader) error {
 		if err := a.processDirect(rc); err != nil {
 			return err
 		}
-	} else {
+	default:
 		log.Debug().Str("app", a.GetName()).Msg("processing direct file")
 		if err := a.processDirect(stream); err != nil {
 			return err
@@ -572,7 +573,7 @@ func (a *Asset) doExtract(stream io.Reader) error {
 
 func (a *Asset) processDirect(in io.Reader) error {
 	log.Trace().Str("app", a.GetName()).Msgf("processing direct file")
-	outFile, err := os.Create(filepath.Join(a.TempDir, filepath.Base(a.DownloadPath)))
+	outFile, err := os.Create(filepath.Join(a.TempDir, filepath.Base(a.DownloadPath))) //nolint:gosec // paths are internally controlled
 	if err != nil {
 		return err
 	}

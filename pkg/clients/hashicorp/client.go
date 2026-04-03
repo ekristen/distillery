@@ -35,7 +35,7 @@ func (c *Client) ListProducts(ctx context.Context) (Products, error) {
 
 	req.Header.Add("User-Agent", fmt.Sprintf("%s/%s", common.NAME, common.AppVersion))
 
-	resp, err := c.client.Do(req)
+	resp, err := c.client.Do(req) //nolint:gosec // URL hardcoded to official HashiCorp API
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +76,7 @@ func (c *Client) ListReleases(ctx context.Context, product string, opts *ListRel
 
 	req.Header.Add("User-Agent", fmt.Sprintf("%s/%s", common.NAME, common.AppVersion))
 
-	resp, err := c.client.Do(req)
+	resp, err := c.client.Do(req) //nolint:gosec // URL hardcoded to official HashiCorp API
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +115,7 @@ func (c *Client) GetVersion(ctx context.Context, product, version string) (*Rele
 
 	req.Header.Add("User-Agent", fmt.Sprintf("%s/%s", common.NAME, common.AppVersion))
 
-	resp, err := c.client.Do(req)
+	resp, err := c.client.Do(req) //nolint:gosec // URL hardcoded to official HashiCorp API
 	if err != nil {
 		return nil, err
 	}

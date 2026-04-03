@@ -19,7 +19,7 @@ import (
 var ErrUnsupportedHashLength = fmt.Errorf("unsupported hash length")
 
 func ComputeFileHash(filePath string, hashFunc func() hash.Hash) (string, error) {
-	file, err := os.Open(filePath)
+	file, err := os.Open(filePath) //nolint:gosec // path from downloaded asset metadata, not user input
 	if err != nil {
 		return "", err
 	}
@@ -38,7 +38,7 @@ func DetermineHashFunc(checksumFilePath string) (func() hash.Hash, error) {
 	logger := log.With().Str("handler", "determine-hash-func").Logger()
 
 	// Open the checksum file
-	checksumFile, err := os.Open(checksumFilePath)
+	checksumFile, err := os.Open(checksumFilePath) //nolint:gosec // path from downloaded asset metadata, not user input
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func CompareHashWithChecksumFile(srcFilename, srcFilePath, checksumFilePath stri
 	}
 
 	// Open the checksum file
-	checksumFile, err := os.Open(checksumFilePath)
+	checksumFile, err := os.Open(checksumFilePath) //nolint:gosec // path from downloaded asset metadata, not user input
 	if err != nil {
 		return false, err
 	}

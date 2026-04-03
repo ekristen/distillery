@@ -37,21 +37,11 @@ type Options struct {
 	Logger             zerolog.Logger
 }
 
-// DoInstall performs an install with explicit options, safe for concurrent use.
-func DoInstall(ctx context.Context, opts *Options) error {
-	startTime := time.Now().UTC()
-
-	appName := opts.App
-	logger := opts.Logger.With().Str("app", appName).Logger()
-
-	logger.Info().Msg("starting installation")
-
-	cfg := opts.Config
-	inv := inventory.New(os.DirFS(cfg.BinPath), cfg.BinPath, cfg.GetOptPath(), cfg)
-
-	name := appName
-	nameParts := strings.Split(name, "@")
-	version := opts.Version
+// resolveNameAndVersion resolves the app name and version from config aliases and CLI input.
+func resolveNameAndVersion(cfg *config.Config, appName, optVersion string, logger *zerolog.Logger) (name, version string) {
+	nameParts := strings.Split(appName, "@")
+	name = appName
+	version = optVersion
 
 	alias := cfg.GetAlias(nameParts[0])
 	if alias != nil {
@@ -68,6 +58,23 @@ func DoInstall(ctx context.Context, opts *Options) error {
 	} else if len(nameParts) == 2 {
 		version = nameParts[1]
 	}
+
+	return name, version
+}
+
+// DoInstall performs an install with explicit options, safe for concurrent use.
+func DoInstall(ctx context.Context, opts *Options) error {
+	startTime := time.Now().UTC()
+
+	appName := opts.App
+	logger := opts.Logger.With().Str("app", appName).Logger()
+
+	logger.Info().Msg("starting installation")
+
+	cfg := opts.Config
+	inv := inventory.New(os.DirFS(cfg.BinPath), cfg.BinPath, cfg.GetOptPath(), cfg)
+
+	name, version := resolveNameAndVersion(cfg, appName, opts.Version, &logger)
 
 	if opts.UseDistCache {
 		logger.Warn().Msg("[EXPERIMENTAL FEATURE] using distillery pass-through cache, this may not work as expected")

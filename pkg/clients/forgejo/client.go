@@ -55,7 +55,7 @@ func (c *Client) doRequest(ctx context.Context, url string) (*http.Response, err
 		req.Header.Set("Authorization", fmt.Sprintf("token %s", c.token))
 	}
 
-	resp, err := c.client.Do(req)
+	resp, err := c.client.Do(req) //nolint:gosec // URL from user-configured or default baseURL, not arbitrary input
 	if err != nil {
 		return nil, err
 	}

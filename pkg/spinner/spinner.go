@@ -14,6 +14,13 @@ import (
 	"github.com/rs/zerolog"
 )
 
+const (
+	stateSuccess = "success"
+	stateFail    = "fail"
+	stateOK      = "ok"
+	stateDone    = "done"
+)
+
 var (
 	greenStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
 	redStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
@@ -86,45 +93,53 @@ func deferQuit() tea.Msg {
 	return deferredQuit{}
 }
 
+func isTerminalState(state string) bool {
+	return state == stateSuccess || state == stateFail || state == stateOK || state == stateDone
+}
+
+func (m *model) applyLogMsg(as *appState, msg logMsg) {
+	if msg.state != "" {
+		m.completed = append(m.completed, completedLine(msg))
+		if isTerminalState(msg.state) {
+			as.done = true
+		}
+	} else {
+		as.msg = msg.msg
+	}
+}
+
+func (m *model) handleNewApp(msg logMsg) (tea.Model, tea.Cmd) {
+	s := spinner.New(spinner.WithSpinner(spinner.Points))
+	as := &appState{spinner: s}
+	m.apps[msg.app] = as
+	m.order = append(m.order, msg.app)
+	m.assignColor(msg.app)
+
+	as.msg = msg.msg
+	if msg.state != "" {
+		m.completed = append(m.completed, completedLine(msg))
+		if isTerminalState(msg.state) {
+			as.done = true
+		}
+	}
+
+	cmds := []tea.Cmd{as.spinner.Tick}
+	if m.allDone() && !m.quitting {
+		m.quitting = true
+		cmds = append(cmds, deferQuit)
+	}
+	return m, tea.Batch(cmds...)
+}
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case logMsg:
 		as, exists := m.apps[msg.app]
 		if !exists {
-			s := spinner.New(spinner.WithSpinner(spinner.Points))
-			as = &appState{spinner: s}
-			m.apps[msg.app] = as
-			m.order = append(m.order, msg.app)
-			m.assignColor(msg.app)
-
-			as.msg = msg.msg
-			if msg.state != "" {
-				m.completed = append(m.completed, completedLine{
-					app: msg.app, msg: msg.msg, state: msg.state,
-				})
-				if msg.state == "success" || msg.state == "fail" || msg.state == "ok" || msg.state == "done" {
-					as.done = true
-				}
-			}
-
-			cmds := []tea.Cmd{as.spinner.Tick}
-			if m.allDone() && !m.quitting {
-				m.quitting = true
-				cmds = append(cmds, deferQuit)
-			}
-			return m, tea.Batch(cmds...)
+			return m.handleNewApp(msg)
 		}
 
-		if msg.state != "" {
-			m.completed = append(m.completed, completedLine{
-				app: msg.app, msg: msg.msg, state: msg.state,
-			})
-			if msg.state == "success" || msg.state == "fail" || msg.state == "ok" || msg.state == "done" {
-				as.done = true
-			}
-		} else {
-			as.msg = msg.msg
-		}
+		m.applyLogMsg(as, msg)
 
 		if m.allDone() && !m.quitting {
 			m.quitting = true
@@ -167,17 +182,17 @@ func (m model) View() string {
 	for _, cl := range m.completed {
 		prefix := m.appColors[cl.app].Render(cl.app) + ": "
 		switch cl.state {
-		case "success":
+		case stateSuccess:
 			fmt.Fprintf(&b, "%s%s%s\n", greenStyle.Render("✓ "), prefix, greenStyle.Render(cl.msg))
-		case "fail":
+		case stateFail:
 			fmt.Fprintf(&b, "%s%s%s\n", redStyle.Render("✗ "), prefix, cl.msg)
 		case "warn":
 			fmt.Fprintf(&b, "%s%s%s\n", yellowStyle.Render("! "), prefix, cl.msg)
-		case "ok":
+		case stateOK:
 			fmt.Fprintf(&b, "%s%s%s\n", greenStyle.Render("✓ "), prefix, cl.msg)
 		case "hint":
 			fmt.Fprintf(&b, "%s%s%s\n", cyanStyle.Render("? "), prefix, cl.msg)
-		case "done":
+		case stateDone:
 			fmt.Fprintf(&b, "  %s%s\n", prefix, cl.msg)
 		}
 	}
@@ -209,11 +224,11 @@ func (m model) allDone() bool {
 
 // SpinnerWriter implements zerolog.LevelWriter and io.Writer for spinner output.
 type SpinnerWriter struct {
-	mu       sync.Mutex
-	program  *tea.Program
-	started  bool
-	hasApps  bool
-	done     chan struct{}
+	mu      sync.Mutex
+	program *tea.Program
+	started bool
+	hasApps bool
+	done    chan struct{}
 }
 
 // NewWriter creates a new SpinnerWriter.
@@ -256,17 +271,17 @@ func (sw *SpinnerWriter) WriteLevel(_ zerolog.Level, p []byte) (n int, err error
 	var state string
 	switch {
 	case event["success"] == true:
-		state = "success"
+		state = stateSuccess
 	case event["fail"] == true:
-		state = "fail"
+		state = stateFail
 	case event["warn"] == true:
 		state = "warn"
 	case event["ok"] == true:
-		state = "ok"
+		state = stateOK
 	case event["hint"] == true:
 		state = "hint"
 	case event["done"] == true:
-		state = "done"
+		state = stateDone
 	}
 
 	sw.mu.Lock()

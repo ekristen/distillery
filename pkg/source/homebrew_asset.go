@@ -49,7 +49,7 @@ func (a *HomebrewAsset) getAuthToken() (*GHCRAuth, error) {
 
 	var t *GHCRAuth
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) //nolint:gosec // URL hardcoded to official GHCR token endpoint
 	if err != nil {
 		return nil, err
 	}

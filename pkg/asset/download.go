@@ -46,7 +46,7 @@ func DownloadHTTP(ctx context.Context, a *Asset, url, downloadsDir, filename str
 		beforeRequest(req)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) //nolint:gosec // URL from release API or user-configured provider
 	if err != nil {
 		return err
 	}

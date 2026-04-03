@@ -128,7 +128,7 @@ func Before(ctx context.Context, c *cli.Command) (context.Context, error) {
 
 	// For "auto" mode: spinner if interactive TTY at info level, text otherwise
 	if mode == OutputAuto {
-		if zerolog.GlobalLevel() == zerolog.InfoLevel && term.IsTerminal(int(os.Stderr.Fd())) {
+		if zerolog.GlobalLevel() == zerolog.InfoLevel && term.IsTerminal(int(os.Stderr.Fd())) { //nolint:gosec // fd fits in int
 			mode = OutputSpinner
 		} else if zerolog.GlobalLevel() == zerolog.InfoLevel {
 			mode = OutputText
