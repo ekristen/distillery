@@ -54,7 +54,7 @@ func TestCompareHashWithChecksumFile(t *testing.T) {
 	defer os.Remove(checksumFile.Name())
 
 	// Write the hash and filename to the checksum file
-	_, err = fmt.Fprintf(checksumFile, "%s %s\n", hash, tmpFile.Name()) //nolint:gosec // test code
+	_, err = fmt.Fprintf(checksumFile, "%s %s\n", hash, tmpFile.Name())
 	assert.NoError(t, err)
 	checksumFile.Close()
 
@@ -69,7 +69,7 @@ func TestCompareHashWithChecksumFile(t *testing.T) {
 	assert.NoError(t, err)
 	defer os.Remove(checksumFile.Name())
 
-	_, err = fmt.Fprintf(checksumFile, "%s %s\n", hash, tmpFile.Name()) //nolint:gosec // test code
+	_, err = fmt.Fprintf(checksumFile, "%s %s\n", hash, tmpFile.Name())
 	assert.NoError(t, err)
 	checksumFile.Close()
 

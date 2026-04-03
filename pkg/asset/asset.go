@@ -573,7 +573,7 @@ func (a *Asset) doExtract(stream io.Reader) error {
 
 func (a *Asset) processDirect(in io.Reader) error {
 	log.Trace().Str("app", a.GetName()).Msgf("processing direct file")
-	outFile, err := os.Create(filepath.Join(a.TempDir, filepath.Base(a.DownloadPath))) //nolint:gosec // paths are internally controlled
+	outFile, err := os.Create(filepath.Join(a.TempDir, filepath.Base(a.DownloadPath)))
 	if err != nil {
 		return err
 	}

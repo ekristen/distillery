@@ -58,7 +58,7 @@ func (c *Client) ListReleases(ctx context.Context, slug string) ([]*Release, err
 		req.Header.Set("PRIVATE-TOKEN", c.token)
 	}
 
-	resp, err := c.client.Do(req) //nolint:gosec // URL from user-configured or default baseURL, not arbitrary input
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +87,7 @@ func (c *Client) GetLatestRelease(ctx context.Context, slug string) (*Release, e
 		req.Header.Set("PRIVATE-TOKEN", c.token)
 	}
 
-	resp, err := c.client.Do(req) //nolint:gosec // URL from user-configured or default baseURL, not arbitrary input
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func (c *Client) GetRelease(ctx context.Context, slug, version string) (*Release
 		req.Header.Set("PRIVATE-TOKEN", c.token)
 	}
 
-	resp, err := c.client.Do(req) //nolint:gosec // URL from user-configured or default baseURL, not arbitrary input
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, err
 	}

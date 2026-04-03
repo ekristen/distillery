@@ -29,7 +29,7 @@ func parseWithTracking(filePath, baseDir string, seen map[string]struct{}) ([]Co
 		return nil, fmt.Errorf("circular inclusion detected: %s", filePath)
 	}
 
-	file, err := os.Open(filePath) //nolint:gosec // path validated via resolveIncludePath
+	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, err
 	}

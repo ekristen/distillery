@@ -37,7 +37,7 @@ func (h *Client) GetFormula(ctx context.Context, formula string) (*Formula, erro
 
 	req.Header.Add("User-Agent", fmt.Sprintf("%s/%s", common.NAME, common.AppVersion))
 
-	resp, err := h.client.Do(req) //nolint:gosec // URL hardcoded to official Homebrew API
+	resp, err := h.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
