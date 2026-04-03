@@ -209,10 +209,11 @@ func (m model) allDone() bool {
 
 // SpinnerWriter implements zerolog.LevelWriter and io.Writer for spinner output.
 type SpinnerWriter struct {
-	mu      sync.Mutex
-	program *tea.Program
-	started bool
-	done    chan struct{}
+	mu       sync.Mutex
+	program  *tea.Program
+	started  bool
+	hasApps  bool
+	done     chan struct{}
 }
 
 // NewWriter creates a new SpinnerWriter.
@@ -268,6 +269,10 @@ func (sw *SpinnerWriter) WriteLevel(_ zerolog.Level, p []byte) (n int, err error
 		state = "done"
 	}
 
+	sw.mu.Lock()
+	sw.hasApps = true
+	sw.mu.Unlock()
+
 	sw.program.Send(logMsg{
 		app:   app,
 		msg:   msg,
@@ -275,6 +280,21 @@ func (sw *SpinnerWriter) WriteLevel(_ zerolog.Level, p []byte) (n int, err error
 	})
 
 	return len(p), nil
+}
+
+// HasApps returns true if any log messages with an app field were sent.
+func (sw *SpinnerWriter) HasApps() bool {
+	sw.mu.Lock()
+	defer sw.mu.Unlock()
+	return sw.hasApps
+}
+
+// Stop signals the spinner program to quit and waits for it to exit.
+func (sw *SpinnerWriter) Stop() {
+	if sw.started {
+		sw.program.Quit()
+		<-sw.done
+	}
 }
 
 // Wait blocks until the spinner program exits.

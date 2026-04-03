@@ -138,7 +138,8 @@ func (p *Provider) discoverBinary(names []string, version string) error { //noli
 		terms = append(terms, p.OSConfig.GetLibraryNames()...)
 
 		weightedTerms := map[string]int{
-			"source": -20, // as in source.tar.gz
+			"source": -20,  // as in source.tar.gz
+			"update": -100, // deprioritize update binaries from rust/go distributions
 		}
 
 		fileScored[k] = score.Score(v, &score.Options{
@@ -151,7 +152,7 @@ func (p *Provider) discoverBinary(names []string, version string) error { //noli
 			InvalidOS:         p.OSConfig.InvalidOS(),
 			InvalidArch:       p.OSConfig.InvalidArchitectures(),
 			InvalidExtensions: []string{".zst"},
-			InvalidTerms:      p.OSConfig.GetInvalidLibraryNames(),
+			InvalidLibrary:    p.OSConfig.GetInvalidLibraryNames(),
 		})
 
 		if len(fileScored[k]) > 0 {
@@ -179,35 +180,30 @@ func (p *Provider) discoverBinary(names []string, version string) error { //noli
 		return errors.New("no matching asset found, score too low")
 	}
 
-	// Note: we want to look for the best binary by looking at binaries, archives and unknowns
+	// Find the single highest-scoring asset across all types
+	bestScore := 39
+	bestKey := ""
 	for _, t := range []asset.Type{asset.Unknown, asset.Binary, asset.Archive} {
-		if p.Binary != nil {
-			break
-		}
-
 		if len(fileScored[t]) > 0 {
+			top := fileScored[t][0]
 			p.Logger.Trace().
-				Str("filename", fileScored[t][0].Key).
-				Int("score", fileScored[t][0].Value).
+				Str("filename", top.Key).
+				Int("score", top.Value).
 				Str("filetype", t.String()).
-				Msgf("top scored (%d): %s (%d)", t, fileScored[t][0].Key, fileScored[t][0].Value)
+				Msgf("top scored (%d): %s (%d)", t, top.Key, top.Value)
 
-			topScored := fileScored[t][0]
-			if topScored.Value < 40 {
-				p.Logger.Trace().Msgf("skipped > (%d) too low: %s (%d)", t, topScored.Key, topScored.Value)
-				continue
-			}
-
-			for _, a := range p.Assets {
-				if topScored.Key == a.GetName() {
-					p.Binary = a
-					break
-				}
+			if top.Value > bestScore {
+				bestScore = top.Value
+				bestKey = top.Key
 			}
 		}
-
-		if p.Binary != nil {
-			break
+	}
+	if bestKey != "" {
+		for _, a := range p.Assets {
+			if bestKey == a.GetName() {
+				p.Binary = a
+				break
+			}
 		}
 	}
 
@@ -255,15 +251,10 @@ func (p *Provider) discoverChecksum() error {
 			WeightedTerms: map[string]int{
 				"checksums": 100,
 				"SHA512":    50,
-				"sha512sum": 50,
 				"SHA256":    40,
-				"sha256sum": 40,
 				"MD5":       30,
-				"md5sum":    30,
 				"SHA1":      20,
-				"sha1sum":   20,
 				"SHA":       15,
-				"shasum":    15,
 				"SUMS":      10,
 			},
 			InvalidOS:   p.OSConfig.InvalidOS(),

@@ -22,6 +22,7 @@ type Options struct {
 	InvalidArch       []string
 	InvalidExtensions []string
 	InvalidTerms      []string
+	InvalidLibrary    []string
 }
 
 func (o *Options) GetAllStrings() []string {
@@ -39,84 +40,160 @@ func (o *Options) GetAllStrings() []string {
 	return allStrings
 }
 
-func Score(names []string, opts *Options) []Sorted { //nolint:gocyclo
+// getMultiSegmentTerms collects all terms from options that contain delimiters (-/_)
+func (o *Options) getMultiSegmentTerms() []string {
+	var allTerms []string
+	allTerms = append(allTerms, o.OS...)
+	allTerms = append(allTerms, o.Arch...)
+	allTerms = append(allTerms, o.Terms...)
+	allTerms = append(allTerms, o.InvalidOS...)
+	allTerms = append(allTerms, o.InvalidArch...)
+	allTerms = append(allTerms, o.InvalidTerms...)
+	allTerms = append(allTerms, o.InvalidLibrary...)
+	allTerms = append(allTerms, o.Versions...)
+	for _, v := range o.Versions {
+		allTerms = append(allTerms, "v"+v)
+	}
+	for k := range o.WeightedTerms {
+		allTerms = append(allTerms, k)
+	}
+
+	var result []string
+	for _, term := range allTerms {
+		if strings.ContainsAny(term, "-_") {
+			result = append(result, term)
+		}
+	}
+	return result
+}
+
+// segmentize splits a filename into lowercase segments, preserving multi-segment
+// terms (those containing - or _) as single units via placeholder replacement.
+func segmentize(filename string, multiSegmentTerms []string) []string {
+	filename = removeExtension(filename)
+
+	sorted := make([]string, len(multiSegmentTerms))
+	copy(sorted, multiSegmentTerms)
+	sort.Slice(sorted, func(i, j int) bool {
+		return len(sorted[i]) > len(sorted[j])
+	})
+
+	replacements := make(map[string]string)
+	modified := strings.ToLower(filename)
+
+	for i, term := range sorted {
+		lower := strings.ToLower(term)
+		placeholder := fmt.Sprintf("PLACEHOLDER%d", i)
+		if strings.Contains(modified, lower) {
+			replacements[placeholder] = lower
+			modified = strings.ReplaceAll(modified, lower, placeholder)
+		}
+	}
+
+	segments := strings.FieldsFunc(modified, func(r rune) bool {
+		return r == '-' || r == '_'
+	})
+
+	for i, seg := range segments {
+		if original, ok := replacements[seg]; ok {
+			segments[i] = original
+		}
+	}
+
+	return segments
+}
+
+// segmentContains checks if any segment matches the term (case-insensitive)
+func segmentContains(segments []string, term string) bool {
+	lower := strings.ToLower(term)
+	for _, seg := range segments {
+		if seg == lower {
+			return true
+		}
+	}
+	return false
+}
+
+func Score(names []string, opts *Options) []Sorted {
 	logger := log.With().Str("function", "score").Logger()
 	logger.Trace().Msgf("names: %v", names)
 
-	var scores = make(map[string]int)
+	scores := make(map[string]int)
+	multiSegTerms := opts.getMultiSegmentTerms()
+	allStrings := opts.GetAllStrings()
 
 	for _, name := range names {
-		var score int
-		var scoringValues = make(map[string]int)
-
-		for _, name1 := range opts.Names {
-			if name1 == name {
-				scores = map[string]int{
-					name: 200,
-				}
+		// Exact name match
+		for _, n := range opts.Names {
+			if n == name {
+				scores = map[string]int{name: 200}
 				return SortMapByValue(scores)
 			}
 		}
 
-		// Note: if it has the word "update" in it, we want to deprioritize it as it's likely an update binary from
-		// a rust or go binary distribution
-		// TODO: move this out of the function to a weighted term
-		scoringValues["update"] = -100
-		scoringValues["-keyless.sig"] = -10
-
-		for _, os1 := range opts.OS {
-			scoringValues[strings.ToLower(os1)] = 40
-		}
-		for _, arch := range opts.Arch {
-			scoringValues[strings.ToLower(arch)] = 30
-		}
-		for _, ext := range opts.Extensions {
-			scoringValues[strings.ToLower(ext)] = 20
-		}
-		for _, term := range opts.Terms {
-			scoringValues[strings.ToLower(term)] = 10
-		}
-
-		for _, os1 := range opts.InvalidOS {
-			scoringValues[strings.ToLower(os1)] = -40
-		}
-		for _, arch := range opts.InvalidArch {
-			scoringValues[strings.ToLower(arch)] = -30
-		}
-		for _, ext := range opts.InvalidExtensions {
-			scoringValues[strings.ToLower(ext)] = -20
-		}
-		for _, term := range opts.InvalidTerms {
-			scoringValues[strings.ToLower(term)] = -10
-		}
-
-		for term, weight := range opts.WeightedTerms {
-			scoringValues[strings.ToLower(term)] = weight
-		}
-
-		for keyMatch, keyScore := range scoringValues {
-			if keyScore == 20 { // handle extensions special
-				if ext := strings.TrimPrefix(filepath.Ext(strings.ToLower(name)), "."); ext != "" {
-					for _, fileExt := range opts.Extensions {
-						if filetype.GetType(ext) == filetype.GetType(fileExt) {
-							score += keyScore
-							break
-						}
-					}
-				}
-			} else {
-				if strings.Contains(strings.ToLower(name), keyMatch) {
-					score += keyScore
-				}
-			}
-		}
-
-		scores[name] = score + calculateAccuracyScore(name, opts.GetAllStrings())
-
+		segments := segmentize(name, multiSegTerms)
+		scores[name] = scoreSegments(name, segments, opts) + calculateAccuracyScore(name, allStrings)
 		logger.Trace().Msgf("scoring %s with score %d", name, scores[name])
 	}
 
 	return SortMapByValue(scores)
+}
+
+// firstSegmentMatch returns weight if any term matches a segment, 0 otherwise
+func firstSegmentMatch(segments, terms []string, weight int) int {
+	for _, term := range terms {
+		if segmentContains(segments, term) {
+			return weight
+		}
+	}
+	return 0
+}
+
+// allSegmentMatches returns weight * count of matching terms
+func allSegmentMatches(segments, terms []string, weight int) int {
+	score := 0
+	for _, term := range terms {
+		if segmentContains(segments, term) {
+			score += weight
+		}
+	}
+	return score
+}
+
+// extensionMatch returns weight if the file extension MIME-matches any in the list
+func extensionMatch(filename string, extensions []string, weight int) int {
+	ext := strings.TrimPrefix(filepath.Ext(strings.ToLower(filename)), ".")
+	if ext == "" {
+		return 0
+	}
+	for _, fileExt := range extensions {
+		if filetype.GetType(ext) == filetype.GetType(fileExt) {
+			return weight
+		}
+	}
+	return 0
+}
+
+func scoreSegments(name string, segments []string, opts *Options) int {
+	score := firstSegmentMatch(segments, opts.OS, 40)
+	score += firstSegmentMatch(segments, opts.Arch, 30)
+	score += extensionMatch(name, opts.Extensions, 20)
+	score += allSegmentMatches(segments, opts.Terms, 10)
+	score += firstSegmentMatch(segments, opts.InvalidOS, -40)
+	score += firstSegmentMatch(segments, opts.InvalidArch, -30)
+	score += extensionMatch(name, opts.InvalidExtensions, -20)
+	score += allSegmentMatches(segments, opts.InvalidTerms, -10)
+	score += allSegmentMatches(segments, opts.InvalidLibrary, -30)
+
+	// WeightedTerms: substring match preserved (for checksum discovery)
+	lowerName := strings.ToLower(name)
+	for term, weight := range opts.WeightedTerms {
+		if strings.Contains(lowerName, strings.ToLower(term)) {
+			score += weight
+		}
+	}
+
+	return score
 }
 
 func removeExtension(filename string) string {
@@ -141,41 +218,18 @@ func removeExtension(filename string) string {
 
 func calculateAccuracyScore(filename string, knownTerms []string) int {
 	log.Trace().Msgf("calculating accuracy score for filename: %s", filename)
-	filename = removeExtension(filename) // Remove the file extension
-	log.Trace().Msgf("filename after removing extension: %s", filename)
 
-	// Sort known terms by length (descending) to replace longest matches first
-	sort.Slice(knownTerms, func(i, j int) bool {
-		return len(knownTerms[i]) > len(knownTerms[j])
-	})
-
-	// Create a map to store placeholders for special terms
-	replacements := make(map[string]string)
-	modifiedFilename := filename
-
-	// Replace known terms with placeholders
-	for i, term := range knownTerms {
-		if strings.Contains(term, "-") || strings.Contains(term, "_") {
-			placeholder := fmt.Sprintf("PLACEHOLDER%d", i)
-			replacements[placeholder] = term
-			modifiedFilename = strings.ReplaceAll(modifiedFilename, term, placeholder)
+	var multiSegTerms []string
+	for _, term := range knownTerms {
+		if strings.ContainsAny(term, "-_") {
+			multiSegTerms = append(multiSegTerms, term)
 		}
 	}
 
-	// Split on delimiters
-	terms := strings.FieldsFunc(modifiedFilename, func(r rune) bool {
-		return r == '-' || r == '_'
-	})
+	segments := segmentize(filename, multiSegTerms)
+	lowerFilename := strings.ToLower(removeExtension(filename))
 
-	// Restore original terms from placeholders
-	for i, term := range terms {
-		if originalTerm, exists := replacements[term]; exists {
-			terms[i] = originalTerm
-		}
-	}
-
-	// discovered terms
-	for i, term := range terms {
+	for i, term := range segments {
 		log.Trace().Msgf("term %d: %s", i, term)
 	}
 
@@ -183,26 +237,23 @@ func calculateAccuracyScore(filename string, knownTerms []string) int {
 		log.Trace().Msgf("known term %d: %s", i, term)
 	}
 
-	// Initialize the score
 	score := 0
 
-	// Create a map for quick lookup of known terms
 	knownMap := make(map[string]bool)
 	for _, term := range knownTerms {
-		knownMap[term] = true
+		knownMap[strings.ToLower(term)] = true
 	}
 
-	// Check each term in the filename
-	for _, term := range terms {
-		currentScore := score // Store the current score for logging
-		if filename == term {
-			score += 10 // Add points for a direct match
+	for _, term := range segments {
+		currentScore := score
+		if lowerFilename == term {
+			score += 10
 			log.Trace().Str("filename", filename).Int("current", currentScore).Int("new", score).Msgf("adding points (10) for term: %s", term)
 		} else if knownMap[term] {
-			score += 2 // Add point for a correct match
+			score += 2
 			log.Trace().Str("filename", filename).Int("current", currentScore).Int("new", score).Msgf("adding points (2) for term: %s", term)
 		} else {
-			score += -5 // Add a larger penalty for an unknown term
+			score -= 5
 			log.Trace().Str("filename", filename).Int("current", currentScore).Int("new", score).Msgf("subtracting points (5) for term: %s", term)
 		}
 	}

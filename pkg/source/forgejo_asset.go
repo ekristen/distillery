@@ -2,18 +2,12 @@ package source
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
-	"io"
 	"net/http"
-	"os"
 	"path/filepath"
-
-	"github.com/rs/zerolog/log"
 
 	"github.com/ekristen/distillery/pkg/asset"
 	"github.com/ekristen/distillery/pkg/clients/forgejo"
-	"github.com/ekristen/distillery/pkg/common"
 )
 
 type ForgejoAsset struct {
@@ -32,65 +26,13 @@ func (a *ForgejoAsset) Path() string {
 }
 
 func (a *ForgejoAsset) Download(ctx context.Context) error {
-	downloadsDir := a.Forgejo.Options.Config.GetDownloadsPath()
-	filename := filepath.Base(a.ReleaseAsset.BrowserDownloadURL)
-
-	assetFile := filepath.Join(downloadsDir, filename)
-	a.DownloadPath = assetFile
-	a.Extension = filepath.Ext(a.DownloadPath)
-
-	assetFileHash := fmt.Sprintf("%s.sha256", assetFile)
-	stats, err := os.Stat(assetFileHash)
-	if err != nil && !os.IsNotExist(err) {
-		return err
-	}
-
-	if stats != nil {
-		log.Debug().Msgf("file already downloaded: %s", assetFile)
-		return nil
-	}
-
-	log.Debug().Msgf("downloading asset: %s", a.ReleaseAsset.BrowserDownloadURL)
-
-	req, err := http.NewRequestWithContext(ctx, "GET", a.ReleaseAsset.BrowserDownloadURL, http.NoBody)
-	if err != nil {
-		return err
-	}
-
-	req.Header.Add("User-Agent", fmt.Sprintf("%s/%s", common.NAME, common.AppVersion))
-	if a.Forgejo.Client.GetToken() != "" {
-		req.Header.Set("Authorization", fmt.Sprintf("token %s", a.Forgejo.Client.GetToken()))
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	hasher := sha256.New()
-	tmpFile, err := os.Create(assetFile)
-	if err != nil {
-		return err
-	}
-	defer tmpFile.Close()
-
-	multiWriter := io.MultiWriter(tmpFile, hasher)
-
-	if _, err := io.Copy(multiWriter, resp.Body); err != nil {
-		return err
-	}
-
-	log.Trace().Msgf("hash: %x", hasher.Sum(nil))
-
-	_ = os.WriteFile(assetFileHash, []byte(fmt.Sprintf("%x", hasher.Sum(nil))), 0600)
-	a.Hash = string(hasher.Sum(nil))
-
-	log.Trace().Msgf("Downloaded asset to: %s", tmpFile.Name())
-
-	return nil
+	return asset.DownloadHTTP(ctx, a.Asset, a.ReleaseAsset.BrowserDownloadURL,
+		a.Forgejo.Options.Config.GetDownloadsPath(),
+		filepath.Base(a.ReleaseAsset.BrowserDownloadURL),
+		&a.Forgejo.Logger,
+		func(req *http.Request) {
+			if a.Forgejo.Client.GetToken() != "" {
+				req.Header.Set("Authorization", fmt.Sprintf("token %s", a.Forgejo.Client.GetToken()))
+			}
+		})
 }
