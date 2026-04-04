@@ -9,11 +9,12 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/ekristen/distillery/pkg/common"
+	"github.com/ekristen/distillery/pkg/httpclient"
 )
 
 func NewClient(client *http.Client) *Client {
 	if client == nil {
-		client = http.DefaultClient
+		client = httpclient.NewSafeClient()
 	}
 
 	return &Client{

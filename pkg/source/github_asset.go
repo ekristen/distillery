@@ -5,13 +5,13 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 
 	"github.com/google/go-github/v72/github"
 
 	"github.com/ekristen/distillery/pkg/asset"
+	"github.com/ekristen/distillery/pkg/httpclient"
 )
 
 type GitHubAsset struct {
@@ -33,7 +33,7 @@ func (a *GitHubAsset) Download(ctx context.Context) error {
 	logger := a.GitHub.Logger
 
 	rc, url, err := a.GitHub.client.Repositories.DownloadReleaseAsset(
-		ctx, a.GitHub.GetOwner(), a.GitHub.GetRepo(), a.ReleaseAsset.GetID(), http.DefaultClient)
+		ctx, a.GitHub.GetOwner(), a.GitHub.GetRepo(), a.ReleaseAsset.GetID(), httpclient.NewSafeClient())
 	if err != nil {
 		return err
 	}

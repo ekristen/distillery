@@ -12,6 +12,7 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/ekristen/distillery/pkg/common"
+	"github.com/ekristen/distillery/pkg/httpclient"
 )
 
 // DownloadHTTP downloads a file from a URL, caching by sha256 hash file.
@@ -46,7 +47,7 @@ func DownloadHTTP(ctx context.Context, a *Asset, url, downloadsDir, filename str
 		beforeRequest(req)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpclient.NewSafeClient().Do(req)
 	if err != nil {
 		return err
 	}

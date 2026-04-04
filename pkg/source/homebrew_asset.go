@@ -9,6 +9,7 @@ import (
 
 	"github.com/ekristen/distillery/pkg/asset"
 	"github.com/ekristen/distillery/pkg/clients/homebrew"
+	"github.com/ekristen/distillery/pkg/httpclient"
 )
 
 type HomebrewAsset struct {
@@ -49,7 +50,7 @@ func (a *HomebrewAsset) getAuthToken() (*GHCRAuth, error) {
 
 	var t *GHCRAuth
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpclient.NewSafeClient().Do(req)
 	if err != nil {
 		return nil, err
 	}
