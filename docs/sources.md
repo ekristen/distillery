@@ -6,6 +6,7 @@
 - Homebrew (binaries only, if anything has a dependency, it will not work at this time)
 - Hashicorp (special handling for their releases, pointing to GitHub repos will automatically pass through)
 - Kubernetes (special handling for their releases, pointing to GitHub repos will automatically pass through)
+- Helm (special handling for Helm project releases on GitHub)
 
 ## Authentication
 
