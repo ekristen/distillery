@@ -43,10 +43,10 @@ func (c *Client) GetClient() *http.Client {
 	return c.client
 }
 
-func (c *Client) doRequest(ctx context.Context, url string) (*http.Response, error) {
-	log.Trace().Msgf("GET %s", url)
+func (c *Client) doRequest(ctx context.Context, reqURL string) (*http.Response, error) {
+	log.Trace().Msgf("GET %s", reqURL)
 
-	req, err := http.NewRequestWithContext(ctx, "GET", url, http.NoBody)
+	req, err := http.NewRequestWithContext(ctx, "GET", reqURL, http.NoBody)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func (c *Client) doRequest(ctx context.Context, url string) (*http.Response, err
 
 	if resp.StatusCode != http.StatusOK {
 		_ = resp.Body.Close()
-		return nil, fmt.Errorf("unexpected status %d for %s", resp.StatusCode, url)
+		return nil, fmt.Errorf("unexpected status %d for %s", resp.StatusCode, reqURL)
 	}
 
 	return resp, nil
@@ -74,10 +74,10 @@ func (c *Client) ListReleases(ctx context.Context, owner, repo string) ([]*Relea
 
 	const pageSize = 50
 	for page := 1; ; page++ {
-		url := fmt.Sprintf("%s/repos/%s/%s/releases?limit=%d&page=%d",
+		reqURL := fmt.Sprintf("%s/repos/%s/%s/releases?limit=%d&page=%d",
 			c.baseURL, url.PathEscape(owner), url.PathEscape(repo), pageSize, page)
 
-		resp, err := c.doRequest(ctx, url)
+		resp, err := c.doRequest(ctx, reqURL)
 		if err != nil {
 			return nil, err
 		}
@@ -100,9 +100,9 @@ func (c *Client) ListReleases(ctx context.Context, owner, repo string) ([]*Relea
 }
 
 func (c *Client) GetLatestRelease(ctx context.Context, owner, repo string) (*Release, error) {
-	url := fmt.Sprintf("%s/repos/%s/%s/releases/latest", c.baseURL, url.PathEscape(owner), url.PathEscape(repo))
+	reqURL := fmt.Sprintf("%s/repos/%s/%s/releases/latest", c.baseURL, url.PathEscape(owner), url.PathEscape(repo))
 
-	resp, err := c.doRequest(ctx, url)
+	resp, err := c.doRequest(ctx, reqURL)
 	if err != nil {
 		return nil, err
 	}
@@ -117,9 +117,9 @@ func (c *Client) GetLatestRelease(ctx context.Context, owner, repo string) (*Rel
 }
 
 func (c *Client) GetRelease(ctx context.Context, owner, repo, tag string) (*Release, error) {
-	url := fmt.Sprintf("%s/repos/%s/%s/releases/tags/%s", c.baseURL, url.PathEscape(owner), url.PathEscape(repo), url.PathEscape(tag))
+	reqURL := fmt.Sprintf("%s/repos/%s/%s/releases/tags/%s", c.baseURL, url.PathEscape(owner), url.PathEscape(repo), url.PathEscape(tag))
 
-	resp, err := c.doRequest(ctx, url)
+	resp, err := c.doRequest(ctx, reqURL)
 	if err != nil {
 		return nil, err
 	}

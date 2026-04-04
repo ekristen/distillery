@@ -1,6 +1,7 @@
 package httpclient
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -28,7 +29,7 @@ func TestSafeClient_SameHostRedirectPreservesAuth(t *testing.T) {
 	defer srv.Close()
 
 	client := NewSafeClient()
-	req, err := http.NewRequest("GET", srv.URL+"/start", http.NoBody)
+	req, err := http.NewRequestWithContext(context.Background(), "GET", srv.URL+"/start", http.NoBody)
 	require.NoError(t, err)
 	req.Header.Set("Authorization", "Bearer secret-token")
 	req.Header.Set("PRIVATE-TOKEN", "gitlab-secret")
@@ -59,7 +60,7 @@ func TestSafeClient_CrossHostRedirectStripsAuth(t *testing.T) {
 	defer origin.Close()
 
 	client := NewSafeClient()
-	req, err := http.NewRequest("GET", origin.URL+"/start", http.NoBody)
+	req, err := http.NewRequestWithContext(context.Background(), "GET", origin.URL+"/start", http.NoBody)
 	require.NoError(t, err)
 	req.Header.Set("Authorization", "Bearer secret-token")
 	req.Header.Set("PRIVATE-TOKEN", "gitlab-secret")
@@ -82,7 +83,7 @@ func TestSafeClient_TooManyRedirects(t *testing.T) {
 	defer srv.Close()
 
 	client := NewSafeClient()
-	req, err := http.NewRequest("GET", srv.URL+"/start", http.NoBody)
+	req, err := http.NewRequestWithContext(context.Background(), "GET", srv.URL+"/start", http.NoBody)
 	require.NoError(t, err)
 
 	resp, err := client.Do(req)
@@ -104,7 +105,7 @@ func TestSafeClient_NoRedirect(t *testing.T) {
 	defer srv.Close()
 
 	client := NewSafeClient()
-	req, err := http.NewRequest("GET", srv.URL+"/resource", http.NoBody)
+	req, err := http.NewRequestWithContext(context.Background(), "GET", srv.URL+"/resource", http.NoBody)
 	require.NoError(t, err)
 	req.Header.Set("Authorization", "Bearer my-token")
 

@@ -588,6 +588,31 @@ func (a *Asset) processDirect(in io.Reader) error {
 	return nil
 }
 
+// safeArchivePath validates that nameInArchive does not escape baseDir via
+// path traversal, absolute paths, or symlinks. Returns the resolved target path.
+func safeArchivePath(baseDir, nameInArchive string) (string, error) {
+	cleanName := filepath.Clean(nameInArchive)
+	if filepath.IsAbs(cleanName) || strings.HasPrefix(cleanName, "..") {
+		return "", fmt.Errorf("archive member path escapes extraction directory: %s", nameInArchive)
+	}
+
+	target := filepath.Join(baseDir, cleanName)
+
+	absTarget, err := filepath.Abs(target)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve archive member path: %w", err)
+	}
+	absBase, err := filepath.Abs(baseDir)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve base directory path: %w", err)
+	}
+	if !strings.HasPrefix(absTarget, absBase+string(filepath.Separator)) && absTarget != absBase {
+		return "", fmt.Errorf("archive member path escapes extraction directory: %s", nameInArchive)
+	}
+
+	return target, nil
+}
+
 func (a *Asset) processArchive(ctx context.Context, f archives.FileInfo) error {
 	// Reject symlinks to prevent symlink attacks
 	if f.Mode()&os.ModeSymlink != 0 {
@@ -595,27 +620,9 @@ func (a *Asset) processArchive(ctx context.Context, f archives.FileInfo) error {
 		return nil
 	}
 
-	// Validate path does not escape TempDir (zip slip protection)
-	cleanName := filepath.Clean(f.NameInArchive)
-	if filepath.IsAbs(cleanName) || strings.HasPrefix(cleanName, "..") {
-		return fmt.Errorf("archive member path escapes extraction directory: %s", f.NameInArchive)
-	}
-
-	// Use NameInArchive for the full path within the archive;
-	// f.Name() only returns the base name which causes collisions with directories.
-	target := filepath.Join(a.TempDir, cleanName)
-
-	// Double-check resolved path is within TempDir
-	absTarget, err := filepath.Abs(target)
+	target, err := safeArchivePath(a.TempDir, f.NameInArchive)
 	if err != nil {
-		return fmt.Errorf("failed to resolve archive member path: %w", err)
-	}
-	absTempDir, err := filepath.Abs(a.TempDir)
-	if err != nil {
-		return fmt.Errorf("failed to resolve temp directory path: %w", err)
-	}
-	if !strings.HasPrefix(absTarget, absTempDir+string(filepath.Separator)) && absTarget != absTempDir {
-		return fmt.Errorf("archive member path escapes extraction directory: %s", f.NameInArchive)
+		return err
 	}
 
 	log.Trace().Str("app", a.GetName()).Msgf("zip > target %s", target)
