@@ -46,10 +46,10 @@ func Execute(ctx context.Context, c *cli.Command) error {
 			defer wg.Done()
 			opts := OptionsFromCLI(c, cfg)
 			opts.App = app
-			// Parse version from app@version
-			parts := strings.SplitN(app, "@", 2)
+			// Strip hint before parsing version (hint is handled later in NewSource)
+			cleaned, _ := extractHint(app)
+			parts := strings.SplitN(cleaned, "@", 2)
 			if len(parts) == 2 {
-				opts.App = parts[0]
 				opts.Version = parts[1]
 			}
 			if err := DoInstall(ctx, opts); err != nil {
@@ -85,7 +85,9 @@ func Before(ctx context.Context, c *cli.Command) (context.Context, error) {
 		}
 	}
 
-	parts := strings.Split(c.Args().First(), "@")
+	// Strip binary hint before parsing version (hint is handled later in NewSource)
+	firstArg, _ := extractHint(c.Args().First())
+	parts := strings.Split(firstArg, "@")
 	if len(parts) == 2 {
 		_ = c.Set("version", parts[1])
 	} else if len(parts) == 1 {
@@ -217,12 +219,12 @@ func Flags() []cli.Flag { //nolint:funlen
 func init() {
 	cmd := &cli.Command{
 		Name:        "install",
-		Usage:       "install [provider/]owner/repo[@version]",
+		Usage:       "install [provider/]owner/repo[:binary][@version]",
 		Description: fmt.Sprintf(`install binaries fast. default location is $HOME/.%s/bin`, common.NAME),
 		Before:      Before,
 		Flags:       append(Flags(), common.Flags()...),
 		Action:      Execute,
-		ArgsUsage:   "[provider/]owner/repo[@version]",
+		ArgsUsage:   "[provider/]owner/repo[:binary][@version]",
 	}
 
 	common.RegisterCommand(cmd)

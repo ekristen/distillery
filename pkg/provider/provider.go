@@ -142,6 +142,13 @@ func (p *Provider) discoverBinary(names []string, version string) error { //noli
 			"update": -100, // deprioritize update binaries from rust/go distributions
 		}
 
+		// If a binary hint is provided (e.g. grafana/loki#logcli), use it as a
+		// high-weight term to prefer assets matching the hint over the repo name.
+		if hint, ok := p.Options.Settings["binary-hint"].(string); ok && hint != "" {
+			p.Logger.Debug().Msgf("using binary hint: %s", hint)
+			weightedTerms[hint] = 100
+		}
+
 		fileScored[k] = score.Score(v, &score.Options{
 			OS:                detectedOS,
 			Arch:              arch,

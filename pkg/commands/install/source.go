@@ -12,6 +12,15 @@ import (
 func NewSource(src string, opts *provider.Options) (provider.ISource, error) { //nolint:funlen,gocyclo
 	detectedOS := osconfig.New(opts.OS, opts.Arch)
 
+	// Extract binary hint (e.g. owner/repo:logcli@version or owner/repo@version:logcli)
+	src, hint := extractHint(src)
+	if hint != "" {
+		if opts.Settings == nil {
+			opts.Settings = map[string]interface{}{}
+		}
+		opts.Settings["binary-hint"] = hint
+	}
+
 	version := "latest"
 	versionParts := strings.Split(src, "@")
 	if len(versionParts) > 1 {
@@ -206,4 +215,26 @@ func NewSource(src string, opts *provider.Options) (provider.ISource, error) { /
 	}
 
 	return nil, fmt.Errorf("unknown source: %s", src)
+}
+
+// extractHint extracts a binary hint from a source string.
+// Supports both owner/repo:hint@version and owner/repo@version:hint formats.
+// Returns the source string with the hint removed, and the hint itself.
+func extractHint(src string) (cleaned, hint string) {
+	idx := strings.Index(src, ":")
+	if idx == -1 {
+		return src, ""
+	}
+
+	hint = src[idx+1:]
+	cleaned = src[:idx]
+
+	// If hint contains @, the version was after the hint (e.g. repo:hint@version)
+	if atIdx := strings.Index(hint, "@"); atIdx != -1 {
+		version := hint[atIdx+1:]
+		hint = hint[:atIdx]
+		cleaned = cleaned + "@" + version
+	}
+
+	return cleaned, hint
 }

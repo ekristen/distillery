@@ -245,3 +245,105 @@ func Test_NewSource(t *testing.T) {
 		})
 	}
 }
+
+func Test_extractHint(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		input    string
+		wantSrc  string
+		wantHint string
+	}{
+		{
+			input:    "grafana/loki",
+			wantSrc:  "grafana/loki",
+			wantHint: "",
+		},
+		{
+			input:    "grafana/loki:logcli",
+			wantSrc:  "grafana/loki",
+			wantHint: "logcli",
+		},
+		{
+			input:    "grafana/loki:logcli@3.0.0",
+			wantSrc:  "grafana/loki@3.0.0",
+			wantHint: "logcli",
+		},
+		{
+			input:    "grafana/loki@3.0.0:logcli",
+			wantSrc:  "grafana/loki@3.0.0",
+			wantHint: "logcli",
+		},
+		{
+			input:    "github/grafana/loki:logcli@3.0.0",
+			wantSrc:  "github/grafana/loki@3.0.0",
+			wantHint: "logcli",
+		},
+		{
+			input:    "github/grafana/loki@3.0.0:logcli",
+			wantSrc:  "github/grafana/loki@3.0.0",
+			wantHint: "logcli",
+		},
+		{
+			input:    "ekristen/aws-nuke@3.1.1",
+			wantSrc:  "ekristen/aws-nuke@3.1.1",
+			wantHint: "",
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.input, func(t *testing.T) {
+			gotSrc, gotHint := extractHint(tt.input)
+			assert.Equal(t, tt.wantSrc, gotSrc)
+			assert.Equal(t, tt.wantHint, gotHint)
+		})
+	}
+}
+
+func Test_NewSourceWithHint(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		source   string
+		wantHint string
+		wantRepo string
+	}{
+		{
+			source:   "grafana/loki:logcli",
+			wantHint: "logcli",
+			wantRepo: "loki",
+		},
+		{
+			source:   "grafana/loki:logcli@3.0.0",
+			wantHint: "logcli",
+			wantRepo: "loki",
+		},
+		{
+			source:   "grafana/loki@3.0.0:logcli",
+			wantHint: "logcli",
+			wantRepo: "loki",
+		},
+		{
+			source:   "github/grafana/loki:logcli",
+			wantHint: "logcli",
+			wantRepo: "loki",
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.source, func(t *testing.T) {
+			cfg, err := config.New("/tmp/test/path")
+			assert.NoError(t, err)
+
+			opts := &provider.Options{
+				Config:   cfg,
+				Settings: map[string]interface{}{},
+			}
+
+			got, err := NewSource(tt.source, opts)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantRepo, got.GetRepo())
+			assert.Equal(t, tt.wantHint, opts.Settings["binary-hint"])
+		})
+	}
+}
