@@ -29,8 +29,8 @@ sources. The tool is designed to be straightforward to use. It is **NOT** design
 handle complex dependencies, that's where homebrew shines.
 
 The goal of this project is to install binaries by leveraging the collective power of all the developers out there. It
-is now 2025 and more and more developers are using tools like [goreleaser](https://goreleaser.com/) and [cargo-dist](https://github.com/axodotdev/cargo-dist)
-and many others to pre-compile their software and put their binaries up on GitHub or GitLab. Tools like goreleaser are
+is now 2026 and more and more developers are using tools like [goreleaser](https://goreleaser.com/) and [cargo-dist](https://github.com/axodotdev/cargo-dist)
+and many others to pre-compile their software and put their binaries up on GitHub, GitLab, or Codeberg. Tools like goreleaser are
 expanding to support other languages as well.
 
 Let's take advantage of that and make it easy to install those binaries on your system.

@@ -19,7 +19,7 @@ sources. It is designed to be straightforward and simple to use. It is **NOT** d
 handle complex dependencies, that's where homebrew shines.
 
 The goal of this project is to install binaries by leveraging the collective power of all the developers out there. It
-is now 2025 and more and more developers are using tools like [goreleaser](https://goreleaser.com/) and [cargo-dist](https://github.com/axodotdev/cargo-dist)
+is now 2026 and more and more developers are using tools like [goreleaser](https://goreleaser.com/) and [cargo-dist](https://github.com/axodotdev/cargo-dist)
 and many others to pre-compile their software and put their binaries up on GitHub, GitLab, or Codeberg. Tools like goreleaser are
 expanding to support other languages as well.
 
@@ -37,6 +37,7 @@ Let's take advantage of that and make it easy to install those binaries on your 
 - Support private repositories (this was a feature removed from homebrew)
 - Support checksum verifications (if they exist)
 - Support signature verifications (if they exist)
+- Configurable [aliases](https://dist.sh/config/aliases/) for shorthand binary names
 
 ## Quickstart
 
@@ -137,6 +138,16 @@ installing from GitHub or GitLab directly if it is available, but this is a nice
 dist install homebrew/opentofu
 ```
 
+## Commands
+
+- **`dist install`** - Install binaries from sources (see examples above)
+- **`dist uninstall`** - Remove installed binaries (dry-run by default, use `--no-dry-run` to execute)
+- **`dist list`** - List all installed binaries and their versions
+- **`dist info`** - Display system info, config paths, and cache locations
+- **`dist run`** - Execute a [Distfile](https://dist.sh/distfile/) (batch installation file, similar to a Brewfile)
+- **`dist proof`** - Generate a Distfile from your currently installed binaries
+- **`dist clean`** - Clean up orphaned symlinks (dry-run by default, use `--no-dry-run` to execute)
+
 ## Supported Sources
 
 - GitHub
@@ -145,6 +156,7 @@ dist install homebrew/opentofu
 - Homebrew (binaries only, if anything has a dependency, it will not work at this time)
 - Hashicorp (special handling for their releases, pointing to GitHub repos will automatically pass through)
 - Kubernetes (special handling for their releases, pointing to GitHub repos will automatically pass through)
+- Helm (special handling for Helm project releases on GitHub)
 
 ### Authentication
 
@@ -182,4 +194,25 @@ by the HTTP cache.
 
 If you need to delete your cache simply run `dist info` identify the cache directory and remove it.
 
-**Note:** I may add a cache clear command in the future.
+#### Experimental: Distillery Pass-Through Cache
+
+Distillery includes an experimental cloud-based pass-through cache for GitHub API calls that helps avoid rate limits
+when you are **not** using a GitHub token. This is useful for public repositories when you don't want to set up
+authentication just to avoid rate limiting.
+
+To enable it, set the `DISTILLERY_USE_CACHE` environment variable or use the `--use-dist-cache` flag:
+
+```bash
+export DISTILLERY_USE_CACHE=true
+dist install ekristen/aws-nuke
+```
+
+Or per-command:
+
+```console
+dist install --use-dist-cache ekristen/aws-nuke
+```
+
+**Note:** This only works for unauthenticated requests to public repositories. If you have `DISTILLERY_GITHUB_TOKEN`
+set, the pass-through cache is not used. The cache service only logs hits and misses for debug purposes; no other
+data is retained.
