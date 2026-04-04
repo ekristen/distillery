@@ -7,12 +7,12 @@ import (
 	"strings"
 
 	"github.com/gregjones/httpcache"
-	"github.com/gregjones/httpcache/diskcache"
 	"github.com/rs/zerolog/log"
 
 	"github.com/ekristen/distillery/pkg/asset"
 	"github.com/ekristen/distillery/pkg/clients/forgejo"
 	"github.com/ekristen/distillery/pkg/common"
+	"github.com/ekristen/distillery/pkg/httpclient"
 	"github.com/ekristen/distillery/pkg/provider"
 )
 
@@ -70,7 +70,7 @@ func (s *Forgejo) GetDownloadsDir() string {
 func (s *Forgejo) sourceRun(ctx context.Context) error {
 	cacheFile := filepath.Join(s.Options.Config.GetMetadataPath(), fmt.Sprintf("cache-%s", s.GetID()))
 
-	s.Client = forgejo.NewClient(httpcache.NewTransport(diskcache.New(cacheFile)).Client())
+	s.Client = forgejo.NewClient(httpcache.NewTransport(httpclient.NewDiskCache(cacheFile)).Client())
 	if s.BaseURL != "" {
 		s.Client.SetBaseURL(s.BaseURL)
 	}

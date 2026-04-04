@@ -9,10 +9,10 @@ import (
 
 	"github.com/google/go-github/v72/github"
 	"github.com/gregjones/httpcache"
-	"github.com/gregjones/httpcache/diskcache"
 
 	"github.com/ekristen/distillery/pkg/asset"
 	"github.com/ekristen/distillery/pkg/common"
+	"github.com/ekristen/distillery/pkg/httpclient"
 	"github.com/ekristen/distillery/pkg/provider"
 )
 
@@ -85,7 +85,7 @@ func (s *GitHub) Run(ctx context.Context) error {
 func (s *GitHub) sourceRun(ctx context.Context) error {
 	cacheFile := filepath.Join(s.Options.Config.GetMetadataPath(), fmt.Sprintf("cache-%s", s.GetID()))
 
-	s.client = github.NewClient(httpcache.NewTransport(diskcache.New(cacheFile)).Client())
+	s.client = github.NewClient(httpcache.NewTransport(httpclient.NewDiskCache(cacheFile)).Client())
 	useDistCache := s.Options.Settings["use-dist-cache"].(bool)
 	if useDistCache {
 		s.Logger.Debug().Msg("using dist cache")

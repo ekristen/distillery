@@ -436,7 +436,7 @@ func (a *Asset) cleanFilename(name string) string {
 func (a *Asset) Install(id, binDir, optDir string) error {
 	found := false
 
-	if err := os.MkdirAll(optDir, 0755); err != nil {
+	if err := os.MkdirAll(optDir, 0700); err != nil {
 		return err
 	}
 

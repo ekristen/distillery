@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 
 	"github.com/gregjones/httpcache"
-	"github.com/gregjones/httpcache/diskcache"
 
 	"github.com/ekristen/distillery/pkg/asset"
 	"github.com/ekristen/distillery/pkg/clients/hashicorp"
+	"github.com/ekristen/distillery/pkg/httpclient"
 	"github.com/ekristen/distillery/pkg/provider"
 )
 
@@ -54,7 +54,7 @@ func (s *Hashicorp) GetDownloadsDir() string {
 func (s *Hashicorp) sourceRun(ctx context.Context) error {
 	cacheFile := filepath.Join(s.Options.Config.GetMetadataPath(), fmt.Sprintf("cache-%s", s.GetID()))
 
-	s.client = hashicorp.NewClient(httpcache.NewTransport(diskcache.New(cacheFile)).Client())
+	s.client = hashicorp.NewClient(httpcache.NewTransport(httpclient.NewDiskCache(cacheFile)).Client())
 
 	var release *hashicorp.Release
 

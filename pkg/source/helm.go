@@ -8,10 +8,10 @@ import (
 
 	"github.com/google/go-github/v72/github"
 	"github.com/gregjones/httpcache"
-	"github.com/gregjones/httpcache/diskcache"
 
 	"github.com/ekristen/distillery/pkg/asset"
 	"github.com/ekristen/distillery/pkg/common"
+	"github.com/ekristen/distillery/pkg/httpclient"
 )
 
 const HelmSource = "helm"
@@ -54,7 +54,7 @@ func (s *Helm) GetDownloadsDir() string {
 func (s *Helm) sourceRun(ctx context.Context) error { //nolint:dupl
 	cacheFile := filepath.Join(s.Options.Config.GetMetadataPath(), fmt.Sprintf("cache-%s", s.GetID()))
 
-	s.client = github.NewClient(httpcache.NewTransport(diskcache.New(cacheFile)).Client())
+	s.client = github.NewClient(httpcache.NewTransport(httpclient.NewDiskCache(cacheFile)).Client())
 	githubToken := s.Options.Settings["github-token"].(string)
 	if githubToken != "" {
 		s.Logger.Debug().Msg("auth token provided")
