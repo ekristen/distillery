@@ -2,18 +2,14 @@ package source
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"os"
 	"path/filepath"
-
-	"github.com/sirupsen/logrus"
 
 	"github.com/ekristen/distillery/pkg/asset"
 	"github.com/ekristen/distillery/pkg/clients/homebrew"
+	"github.com/ekristen/distillery/pkg/httpclient"
 )
 
 type HomebrewAsset struct {
@@ -40,8 +36,6 @@ func (g *GHCRAuth) Bearer() string {
 }
 
 func (a *HomebrewAsset) getAuthToken() (*GHCRAuth, error) {
-	// https://ghcr.io/token",service="ghcr.io",scope="repository:homebrew/core/ffmpeg:pull"
-
 	req, err := http.NewRequestWithContext(context.TODO(), "GET", "https://ghcr.io/token", http.NoBody)
 	if err != nil {
 		return nil, err
@@ -52,11 +46,11 @@ func (a *HomebrewAsset) getAuthToken() (*GHCRAuth, error) {
 	q.Add("scope", fmt.Sprintf("repository:homebrew/core/%s:%s", a.Homebrew.GetRepo(), "pull"))
 	req.URL.RawQuery = q.Encode()
 
-	logrus.Tracef("request: %s", req.URL.String())
+	a.Homebrew.Logger.Trace().Msgf("request: %s", req.URL.String())
 
 	var t *GHCRAuth
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpclient.NewSafeClient().Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -70,74 +64,16 @@ func (a *HomebrewAsset) getAuthToken() (*GHCRAuth, error) {
 }
 
 func (a *HomebrewAsset) Download(ctx context.Context) error {
-	downloadsDir := a.Homebrew.Options.Config.GetDownloadsPath()
-	filename := filepath.Base(a.Name + ".tar.gz")
-
-	assetFile := filepath.Join(downloadsDir, filename)
-	a.DownloadPath = assetFile
-	a.Extension = filepath.Ext(a.DownloadPath)
-
-	assetFileHash := assetFile + ".sha256"
-	stats, err := os.Stat(assetFileHash)
-	if err != nil && !os.IsNotExist(err) {
-		return err
-	}
-
-	if stats != nil {
-		logrus.Debug("file already downloaded")
-		return nil
-	}
-
 	token, err := a.getAuthToken()
 	if err != nil {
 		return err
 	}
 
-	// TODO: lookup manifest to determine how the file is stored ...
-
-	req, err := http.NewRequestWithContext(context.TODO(), "GET", a.FileVariant.URL, http.NoBody)
-	if err != nil {
-		return err
-	}
-
-	req.Header.Add("Authorization", token.Bearer())
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	hasher := sha256.New()
-	tmpFile, err := os.Create(assetFile)
-	if err != nil {
-		return err
-	}
-	defer tmpFile.Close()
-
-	multiWriter := io.MultiWriter(tmpFile, hasher)
-
-	f, err := os.Create(assetFile)
-	if err != nil {
-		return err
-	}
-
-	// Write the asset's content to the temporary file
-	_, err = io.Copy(multiWriter, resp.Body)
-	if err != nil {
-		return err
-	}
-
-	if _, err := io.Copy(f, resp.Body); err != nil {
-		return err
-	}
-
-	logrus.Tracef("hash: %x", hasher.Sum(nil))
-
-	_ = os.WriteFile(assetFileHash, []byte(string(hasher.Sum(nil))), 0600)
-	a.Hash = string(hasher.Sum(nil))
-
-	logrus.Tracef("Downloaded asset to: %s", tmpFile.Name())
-
-	return nil
+	return asset.DownloadHTTP(ctx, a.Asset, a.FileVariant.URL,
+		a.Homebrew.Options.Config.GetDownloadsPath(),
+		a.Name+".tar.gz",
+		&a.Homebrew.Logger,
+		func(req *http.Request) {
+			req.Header.Set("Authorization", token.Bearer())
+		})
 }

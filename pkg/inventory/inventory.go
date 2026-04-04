@@ -1,13 +1,14 @@
 package inventory
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 
 	"github.com/ekristen/distillery/pkg/config"
 )
@@ -63,11 +64,17 @@ func (i *Inventory) AddVersion(path, target string) error {
 	relativeBin = filepath.ToSlash(relativeBin)
 
 	relativeParts := strings.Split(relativeBin, "/") // note: using / because we are standardizing via ToSlash
+	if len(relativeParts) < 3 {
+		return fmt.Errorf("invalid binary path structure (expected source/owner/repo): %s", relativeBin)
+	}
 	baseSource := filepath.ToSlash(filepath.Join(relativeParts[:3]...))
 
 	if i.Bins[baseSource] == nil {
 		src := strings.TrimPrefix(strings.TrimPrefix(target, i.config.GetOptPath()), "/")
 		parts := strings.Split(src, "/")
+		if len(parts) < 3 {
+			return fmt.Errorf("invalid source path structure (expected source/owner/repo): %s", src)
+		}
 
 		i.Bins[baseSource] = &Bin{
 			Name:     binName,
@@ -190,19 +197,16 @@ func New(fileSystem fs.FS, basePath, binPath string, cfg *config.Config) *Invent
 
 		target, err := os.Readlink(filepath.ToSlash(filepath.Join(basePath, path)))
 		if err != nil {
-			logrus.WithError(err).Warn("failed to read symlink")
+			log.Warn().Err(err).Msg("failed to read symlink")
 		}
 
 		path = filepath.ToSlash(path)
 		target = filepath.ToSlash(target)
 
-		logrus.WithFields(logrus.Fields{
-			"path":   path,
-			"target": target,
-		}).Trace("adding version")
+		log.Trace().Str("path", path).Str("target", target).Msg("adding version")
 
 		if err := inv.AddVersion(path, target); err != nil {
-			logrus.WithError(err).Warn("failed to add version")
+			log.Warn().Err(err).Msg("failed to add version")
 		}
 
 		return nil

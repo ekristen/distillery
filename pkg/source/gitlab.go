@@ -6,14 +6,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/apex/log"
 	"github.com/gregjones/httpcache"
-	"github.com/gregjones/httpcache/diskcache"
-	"github.com/sirupsen/logrus"
 
 	"github.com/ekristen/distillery/pkg/asset"
 	"github.com/ekristen/distillery/pkg/clients/gitlab"
 	"github.com/ekristen/distillery/pkg/common"
+	"github.com/ekristen/distillery/pkg/httpclient"
 	"github.com/ekristen/distillery/pkg/provider"
 )
 
@@ -63,7 +61,7 @@ func (s *GitLab) GetDownloadsDir() string {
 func (s *GitLab) sourceRun(ctx context.Context) error {
 	cacheFile := filepath.Join(s.Options.Config.GetMetadataPath(), fmt.Sprintf("cache-%s", s.GetID()))
 
-	s.Client = gitlab.NewClient(httpcache.NewTransport(diskcache.New(cacheFile)).Client())
+	s.Client = gitlab.NewClient(httpcache.NewTransport(httpclient.NewDiskCache(cacheFile)).Client())
 	if s.BaseURL != "" {
 		s.Client.SetBaseURL(s.BaseURL)
 	}
@@ -91,7 +89,7 @@ func (s *GitLab) sourceRun(ctx context.Context) error {
 	return nil
 }
 
-func (s *GitLab) FindRelease(ctx context.Context) error {
+func (s *GitLab) FindRelease(ctx context.Context) error { //nolint:gocyclo
 	var err error
 	var release *gitlab.Release
 
@@ -114,18 +112,20 @@ func (s *GitLab) FindRelease(ctx context.Context) error {
 			if strings.Contains(err.Error(), "404 Not Found") {
 				gitlabToken := s.Options.Settings["gitlab-token"].(string)
 				if gitlabToken == "" {
-					log.Warn("no authentication token provided, a 404 error may be due to permissions")
+					return fmt.Errorf("project %s/%s not found (provide --gitlab-token for private projects)",
+						s.GetOwner(), s.GetRepo())
 				}
+				return fmt.Errorf("project %s/%s not found", s.GetOwner(), s.GetRepo())
 			}
 
 			return err
 		}
 
 		for _, r := range releases {
-			logrus.
-				WithField("owner", s.GetOwner()).
-				WithField("repo", s.GetRepo()).
-				Tracef("found release: %s", r.TagName)
+			s.Logger.Trace().
+				Str("owner", s.GetOwner()).
+				Str("repo", s.GetRepo()).
+				Msgf("found release: %s", r.TagName)
 
 			if includePreReleases && r.UpcomingRelease {
 				s.Version = strings.TrimPrefix(r.TagName, "v")
@@ -143,7 +143,10 @@ func (s *GitLab) FindRelease(ctx context.Context) error {
 	}
 
 	if release == nil {
-		return fmt.Errorf("release not found")
+		if s.Version == provider.VersionLatest {
+			return fmt.Errorf("no releases found for %s/%s", s.GetOwner(), s.GetRepo())
+		}
+		return fmt.Errorf("version %s not found for %s/%s", s.Version, s.GetOwner(), s.GetRepo())
 	}
 
 	s.Release = release

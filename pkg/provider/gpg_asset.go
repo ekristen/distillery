@@ -10,9 +10,8 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/ekristen/distillery/pkg/asset"
+	"github.com/ekristen/distillery/pkg/httpclient"
 )
 
 type GPGAsset struct {
@@ -33,10 +32,12 @@ func (a *GPGAsset) Path() string {
 }
 
 func (a *GPGAsset) Download(ctx context.Context) error {
+	logger := a.Options.Logger
+
 	var err error
 	a.KeyID, err = a.MatchedAsset.GetGPGKeyID()
 	if err != nil {
-		logrus.WithError(err).Trace("unable to get GPG key")
+		logger.Trace().Err(err).Msg("unable to get GPG key")
 		return err
 	}
 
@@ -54,11 +55,11 @@ func (a *GPGAsset) Download(ctx context.Context) error {
 	}
 
 	if stats != nil {
-		logrus.Debugf("file already downloaded: %s", assetFile)
+		logger.Debug().Msgf("file already downloaded: %s", assetFile)
 		return nil
 	}
 
-	logrus.Debugf("downloading asset: %d", a.KeyID)
+	logger.Debug().Msgf("downloading GPG key: %d", a.KeyID)
 
 	url := fmt.Sprintf("https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x%s", fmt.Sprintf("%X", a.KeyID))
 
@@ -67,13 +68,12 @@ func (a *GPGAsset) Download(ctx context.Context) error {
 		return fmt.Errorf("failed to download key: %w", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpclient.NewSafeClient().Do(req)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 
-	// Check if the request was successful
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("failed to download key: server returned status %s", resp.Status)
 	}
@@ -87,27 +87,17 @@ func (a *GPGAsset) Download(ctx context.Context) error {
 
 	multiWriter := io.MultiWriter(tmpFile, hasher)
 
-	f, err := os.Create(assetFile)
-	if err != nil {
-		return err
-	}
-
-	// Write the asset's content to the temporary file
 	_, err = io.Copy(multiWriter, resp.Body)
 	if err != nil {
 		return err
 	}
 
-	if _, err := io.Copy(f, resp.Body); err != nil {
-		return err
-	}
-
-	logrus.Tracef("hash: %x", hasher.Sum(nil))
+	logger.Trace().Msgf("hash: %x", hasher.Sum(nil))
 
 	_ = os.WriteFile(assetFileHash, []byte(fmt.Sprintf("%x", hasher.Sum(nil))), 0600)
-	a.Hash = string(hasher.Sum(nil))
+	a.Hash = fmt.Sprintf("%x", hasher.Sum(nil))
 
-	logrus.Tracef("Downloaded asset to: %s", tmpFile.Name())
+	logger.Trace().Msgf("Downloaded GPG key to: %s", tmpFile.Name())
 
 	return nil
 }

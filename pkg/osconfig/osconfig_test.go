@@ -167,17 +167,17 @@ func TestOS_InvalidArchitectures(t *testing.T) {
 		{
 			name:     "Windows AMD64",
 			os:       osconfig.New(osconfig.Windows, osconfig.AMD64),
-			expected: osconfig.ARM64Architectures,
+			expected: append(append(osconfig.ARM64Architectures, osconfig.ARM32Architectures...), osconfig.X86Architectures...),
 		},
 		{
 			name:     "Linux ARM64",
 			os:       osconfig.New(osconfig.Linux, osconfig.ARM64),
-			expected: osconfig.AMD64Architectures,
+			expected: append(append(osconfig.AMD64Architectures, osconfig.ARM32Architectures...), osconfig.X86Architectures...),
 		},
 		{
 			name:     "Darwin Universal",
 			os:       osconfig.New(osconfig.Darwin, osconfig.AMD64),
-			expected: osconfig.ARM64Architectures,
+			expected: append(append(osconfig.ARM64Architectures, osconfig.ARM32Architectures...), osconfig.X86Architectures...),
 		},
 	}
 

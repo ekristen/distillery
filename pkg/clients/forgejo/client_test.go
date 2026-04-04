@@ -267,7 +267,7 @@ func TestListReleasesPagination(t *testing.T) {
 				sb.WriteString(",")
 			}
 			id := startID + i
-			sb.WriteString(fmt.Sprintf(`{
+			fmt.Fprintf(&sb, `{
 				"id": %d,
 				"tag_name": "v1.%d.0",
 				"name": "Release 1.%d.0",
@@ -277,7 +277,7 @@ func TestListReleasesPagination(t *testing.T) {
 				"created_at": "2024-01-01T00:00:00Z",
 				"published_at": "2024-01-01T00:00:00Z",
 				"assets": []
-			}`, id, i, i))
+			}`, id, i, i)
 		}
 		sb.WriteString("]")
 		return sb.String()

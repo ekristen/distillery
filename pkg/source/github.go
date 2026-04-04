@@ -3,17 +3,16 @@ package source
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"path/filepath"
 	"strings"
 
-	"github.com/apex/log"
 	"github.com/google/go-github/v72/github"
 	"github.com/gregjones/httpcache"
-	"github.com/gregjones/httpcache/diskcache"
-	"github.com/sirupsen/logrus"
 
 	"github.com/ekristen/distillery/pkg/asset"
 	"github.com/ekristen/distillery/pkg/common"
+	"github.com/ekristen/distillery/pkg/httpclient"
 	"github.com/ekristen/distillery/pkg/provider"
 )
 
@@ -83,14 +82,31 @@ func (s *GitHub) Run(ctx context.Context) error {
 }
 
 // sourceRun - run the source specific logic
-func (s *GitHub) sourceRun(ctx context.Context) error { //nolint:dupl
+func (s *GitHub) sourceRun(ctx context.Context) error {
 	cacheFile := filepath.Join(s.Options.Config.GetMetadataPath(), fmt.Sprintf("cache-%s", s.GetID()))
 
-	s.client = github.NewClient(httpcache.NewTransport(diskcache.New(cacheFile)).Client())
-	githubToken := s.Options.Settings["github-token"].(string)
-	if githubToken != "" {
-		log.Debug("auth token provided")
-		s.client = s.client.WithAuthToken(githubToken)
+	s.client = github.NewClient(httpcache.NewTransport(httpclient.NewDiskCache(cacheFile)).Client())
+	useDistCache := s.Options.Settings["use-dist-cache"].(bool)
+	if useDistCache {
+		s.Logger.Debug().Msg("using dist cache")
+		baseURL := s.Options.Settings["dist-cache-url"].(string)
+		if baseURL != "" {
+			s.Logger.Debug().Msgf("using dist cache with base url: %s", baseURL)
+			parsedURL, err := url.Parse(baseURL)
+			if err != nil {
+				return fmt.Errorf("invalid dist-cache-url %q: %w", baseURL, err)
+			}
+			if parsedURL.Path == "" {
+				parsedURL.Path = "/"
+			}
+			s.client.BaseURL = parsedURL
+		}
+	} else {
+		githubToken := s.Options.Settings["github-token"].(string)
+		if githubToken != "" {
+			s.Logger.Debug().Msg("auth token provided")
+			s.client = s.client.WithAuthToken(githubToken)
+		}
 	}
 
 	if err := s.FindRelease(ctx); err != nil {
@@ -109,10 +125,10 @@ func (s *GitHub) FindRelease(ctx context.Context) error { //nolint:gocyclo
 	var err error
 	var release *github.RepositoryRelease
 
-	logrus.
-		WithField("owner", s.GetOwner()).
-		WithField("repo", s.GetRepo()).
-		Tracef("finding release for %s", s.Version)
+	s.Logger.Trace().
+		Str("owner", s.GetOwner()).
+		Str("repo", s.GetRepo()).
+		Msgf("finding release for %s", s.Version)
 
 	includePreReleases := s.Options.Settings["include-pre-releases"].(bool)
 
@@ -138,8 +154,10 @@ func (s *GitHub) FindRelease(ctx context.Context) error { //nolint:gocyclo
 				if strings.Contains(err.Error(), "404 Not Found") {
 					githubToken := s.Options.Settings["github-token"].(string)
 					if githubToken == "" {
-						log.Warn("no authentication token provided, a 404 error may be due to permissions")
+						return fmt.Errorf("repository %s/%s not found (provide --github-token for private repos)",
+							s.GetOwner(), s.GetRepo())
 					}
+					return fmt.Errorf("repository %s/%s not found", s.GetOwner(), s.GetRepo())
 				}
 
 				return err
@@ -148,12 +166,12 @@ func (s *GitHub) FindRelease(ctx context.Context) error { //nolint:gocyclo
 			for _, r := range releases {
 				tagName := strings.TrimPrefix(r.GetTagName(), "v")
 
-				logrus.
-					WithField("owner", s.GetOwner()).
-					WithField("repo", s.GetRepo()).
-					WithField("want", s.Version).
-					WithField("found", tagName).
-					Tracef("found release: %s", tagName)
+				s.Logger.Trace().
+					Str("owner", s.GetOwner()).
+					Str("repo", s.GetRepo()).
+					Str("want", s.Version).
+					Str("found", tagName).
+					Msgf("found release: %s", tagName)
 
 				if tagName == strings.TrimPrefix(s.Version, "v") {
 					release = r
@@ -171,7 +189,10 @@ func (s *GitHub) FindRelease(ctx context.Context) error { //nolint:gocyclo
 	}
 
 	if release == nil {
-		return fmt.Errorf("release not found")
+		if s.Version == provider.VersionLatest {
+			return fmt.Errorf("no releases found for %s/%s", s.GetOwner(), s.GetRepo())
+		}
+		return fmt.Errorf("version %s not found for %s/%s", s.Version, s.GetOwner(), s.GetRepo())
 	}
 
 	s.Release = release
@@ -206,7 +227,7 @@ func (s *GitHub) GetReleaseAssets(ctx context.Context) error {
 		params.Page = res.NextPage
 	}
 
-	logrus.Tracef("found %d assets", len(s.Assets))
+	s.Logger.Trace().Msgf("found %d assets", len(s.Assets))
 
 	if len(s.Assets) == 0 {
 		return fmt.Errorf("no assets found")

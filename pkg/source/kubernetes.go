@@ -6,13 +6,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/apex/log"
 	"github.com/google/go-github/v72/github"
 	"github.com/gregjones/httpcache"
-	"github.com/gregjones/httpcache/diskcache"
 
 	"github.com/ekristen/distillery/pkg/asset"
 	"github.com/ekristen/distillery/pkg/common"
+	"github.com/ekristen/distillery/pkg/httpclient"
 )
 
 const KubernetesSource = "kubernetes"
@@ -55,10 +54,10 @@ func (s *Kubernetes) GetDownloadsDir() string {
 func (s *Kubernetes) sourceRun(ctx context.Context) error { //nolint:dupl
 	cacheFile := filepath.Join(s.Options.Config.GetMetadataPath(), fmt.Sprintf("cache-%s", s.GetID()))
 
-	s.client = github.NewClient(httpcache.NewTransport(diskcache.New(cacheFile)).Client())
+	s.client = github.NewClient(httpcache.NewTransport(httpclient.NewDiskCache(cacheFile)).Client())
 	githubToken := s.Options.Settings["github-token"].(string)
 	if githubToken != "" {
-		log.Debug("auth token provided")
+		s.Logger.Debug().Msg("auth token provided")
 		s.client = s.client.WithAuthToken(githubToken)
 	}
 

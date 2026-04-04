@@ -1,142 +1,88 @@
 package install
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
-	"time"
+	"sync"
 
-	"github.com/apex/log"
-	"github.com/urfave/cli/v2"
+	"github.com/rs/zerolog/log"
+	"github.com/urfave/cli/v3"
 
 	"github.com/ekristen/distillery/pkg/common"
 	"github.com/ekristen/distillery/pkg/config"
-	"github.com/ekristen/distillery/pkg/inventory"
-	"github.com/ekristen/distillery/pkg/provider"
 )
 
-func Execute(c *cli.Context) error { //nolint:gocyclo,funlen
-	start := time.Now().UTC()
-
+func Execute(ctx context.Context, c *cli.Command) error {
 	cfg, err := config.New(c.String("config"))
 	if err != nil {
+		log.Error().Bool("fail", true).Err(err).Msgf("failed to load configuration: %s", err)
 		return err
 	}
 
 	if err := cfg.MkdirAll(); err != nil {
+		log.Error().Bool("fail", true).Err(err).Msgf("failed to create directories: %s", err)
 		return err
 	}
 
-	inv := inventory.New(os.DirFS(cfg.BinPath), cfg.BinPath, cfg.GetOptPath(), cfg)
+	apps := c.Args().Slice()
 
-	name := c.Args().First()
-	nameParts := strings.Split(name, "@")
-	alias := cfg.GetAlias(nameParts[0])
-	if alias != nil {
-		name = alias.Name
-		version := alias.Version
-		if len(nameParts) > 1 {
-			if version != "latest" {
-				log.Warn("version specified via cli and alias, ignoring alias version")
+	// Single app: run directly
+	if len(apps) == 1 {
+		opts := OptionsFromCLI(c, cfg)
+		return DoInstall(ctx, opts)
+	}
+
+	// Multiple apps: run concurrently
+	var wg sync.WaitGroup
+	errCh := make(chan error, len(apps))
+
+	for _, app := range apps {
+		wg.Add(1)
+		go func(app string) {
+			defer wg.Done()
+			opts := OptionsFromCLI(c, cfg)
+			opts.App = app
+			// Parse version from app@version
+			parts := strings.SplitN(app, "@", 2)
+			if len(parts) == 2 {
+				opts.App = parts[0]
+				opts.Version = parts[1]
 			}
-			version = nameParts[1]
-		}
-
-		_ = c.Set("version", version)
-
-		name = fmt.Sprintf("%s@%s", name, version)
+			if err := DoInstall(ctx, opts); err != nil {
+				errCh <- err
+			}
+		}(app)
 	}
 
-	src, err := NewSource(name, &provider.Options{
-		OS:     c.String("os"),
-		Arch:   c.String("arch"),
-		Config: cfg,
-		Settings: map[string]interface{}{
-			"version":              c.String("version"),
-			"github-token":         c.String("github-token"),
-			"gitlab-token":         c.String("gitlab-token"),
-			"forgejo-token":        c.String("forgejo-token"),
-			"no-signature-verify":  c.Bool("no-signature-verify"),
-			"no-checksum-verify":   c.Bool("no-checksum-verify"),
-			"no-score-check":       c.Bool("no-score-check"),
-			"include-pre-releases": c.Bool("include-pre-releases"),
-		},
-	})
-	if err != nil {
-		return err
+	wg.Wait()
+	close(errCh)
+
+	var errs []error
+	for err := range errCh {
+		errs = append(errs, err)
 	}
-
-	var userFlags []string
-	if c.Bool("include-pre-releases") {
-		userFlags = append(userFlags, "including pre-releases")
+	if len(errs) > 0 {
+		return fmt.Errorf("%d of %d installs failed", len(errs), len(apps))
 	}
-
-	log.Infof("distillery/%s", common.AppVersion.Summary)
-	for _, flag := range userFlags {
-		log.Infof("   flag: %s", flag)
-	}
-
-	log.Infof("source: %s", src.GetSource())
-	log.Infof("app: %s", src.GetApp())
-	log.Infof("os: %s", c.String("os"))
-	log.Infof("arch: %s", c.String("arch"))
-
-	if c.String("version") == common.Latest {
-		log.Infof("determining latest version")
-	} else {
-		log.Infof("version: %s", c.String("version"))
-	}
-
-	if err := src.PreRun(c.Context); err != nil {
-		return err
-	}
-
-	if c.String("version") == common.Latest {
-		log.Infof("version: %s", src.GetVersion())
-	}
-
-	if !c.Bool("force") {
-		var installedVersion *inventory.Version
-
-		if c.String("version") == common.Latest {
-			installedVersion = inv.GetLatestVersion(fmt.Sprintf("%s/%s", src.GetSource(), src.GetApp()))
-		} else {
-			installedVersion = inv.GetBinVersion(fmt.Sprintf("%s/%s", src.GetSource(), src.GetApp()), c.String("version"))
-		}
-
-		if installedVersion != nil && installedVersion.Version == src.GetVersion() {
-			log.Warnf("already installed")
-			log.Infof("reinstall with --force (%s)", time.Since(start))
-			return nil
-		}
-	}
-
-	if err := src.Run(c.Context); err != nil {
-		return err
-	}
-
-	elapsed := time.Since(start)
-
-	log.Infof("installation complete in %s", elapsed)
 
 	return nil
 }
 
-func Before(c *cli.Context) error {
+func Before(ctx context.Context, c *cli.Command) (context.Context, error) {
 	if c.NArg() == 0 {
-		return fmt.Errorf("no binary specified")
+		return ctx, fmt.Errorf("no binary specified")
 	}
 
 	if c.NArg() > 1 {
 		for _, arg := range c.Args().Slice() {
 			if strings.HasPrefix(arg, "-") {
-				return fmt.Errorf("flags must be specified before the binary(ies)")
+				return ctx, fmt.Errorf("flags must be specified before the binary(ies)")
 			}
 		}
-
-		return fmt.Errorf("currently only one binary can be installed at a time")
 	}
 
 	parts := strings.Split(c.Args().First(), "@")
@@ -145,17 +91,17 @@ func Before(c *cli.Context) error {
 	} else if len(parts) == 1 {
 		_ = c.Set("version", "latest")
 	} else {
-		return fmt.Errorf("invalid binary specified")
+		return ctx, fmt.Errorf("invalid binary specified")
 	}
 
 	if c.String("bin") != "" {
 		_ = c.Set("bins", "false")
 	}
 
-	return common.Before(c)
+	return common.Before(ctx, c)
 }
 
-func Flags() []cli.Flag {
+func Flags() []cli.Flag { //nolint:funlen
 	cfgDir, _ := os.UserConfigDir()
 	homeDir, _ := os.UserHomeDir()
 	if runtime.GOOS == "darwin" {
@@ -163,6 +109,13 @@ func Flags() []cli.Flag {
 	}
 
 	return []cli.Flag{
+		&cli.StringFlag{
+			Name:    "config",
+			Aliases: []string{"c"},
+			Usage:   "Specify the configuration file to use",
+			Sources: cli.EnvVars("DISTILLERY_CONFIG"),
+			Value:   filepath.Join(cfgDir, fmt.Sprintf("%s.yaml", common.NAME)),
+		},
 		&cli.StringFlag{
 			Name:  "version",
 			Usage: "Specify a version to install",
@@ -203,46 +156,39 @@ func Flags() []cli.Flag {
 			Usage: "Specify the architecture to install",
 			Value: runtime.GOARCH,
 		},
-		&cli.PathFlag{
-			Name:    "config",
-			Aliases: []string{"c"},
-			Usage:   "Specify the configuration file to use",
-			EnvVars: []string{"DISTILLERY_CONFIG"},
-			Value:   filepath.Join(cfgDir, fmt.Sprintf("%s.yaml", common.NAME)),
-		},
 		&cli.StringFlag{
 			Name:     "github-token",
 			Usage:    "GitHub token to use for GitHub API requests",
-			EnvVars:  []string{"DISTILLERY_GITHUB_TOKEN"},
+			Sources:  cli.EnvVars("DISTILLERY_GITHUB_TOKEN"),
 			Category: "Authentication",
 		},
 		&cli.StringFlag{
 			Name:     "gitlab-token",
 			Usage:    "GitLab token to use for GitLab API requests",
-			EnvVars:  []string{"DISTILLERY_GITLAB_TOKEN"},
+			Sources:  cli.EnvVars("DISTILLERY_GITLAB_TOKEN"),
 			Category: "Authentication",
 		},
 		&cli.StringFlag{
 			Name:     "forgejo-token",
 			Usage:    "Forgejo token to use for Forgejo/Codeberg API requests",
-			EnvVars:  []string{"DISTILLERY_FORGEJO_TOKEN"},
+			Sources:  cli.EnvVars("DISTILLERY_FORGEJO_TOKEN"),
 			Category: "Authentication",
 		},
 		&cli.BoolFlag{
 			Name:    "include-pre-releases",
 			Usage:   "include pre-releases in the list of available versions",
-			EnvVars: []string{"DISTILLERY_INCLUDE_PRE_RELEASES"},
+			Sources: cli.EnvVars("DISTILLERY_INCLUDE_PRE_RELEASES"),
 			Aliases: []string{"pre"},
 		},
 		&cli.BoolFlag{
 			Name:    "no-checksum-verify",
 			Usage:   "disable checksum verification",
-			EnvVars: []string{"DISTILLERY_NO_CHECKSUM_VERIFY"},
+			Sources: cli.EnvVars("DISTILLERY_NO_CHECKSUM_VERIFY"),
 		},
 		&cli.BoolFlag{
 			Name:    "no-signature-verify",
 			Usage:   "disable signature verification",
-			EnvVars: []string{"DISTILLERY_NO_SIGNATURE_VERIFY"},
+			Sources: cli.EnvVars("DISTILLERY_NO_SIGNATURE_VERIFY"),
 		},
 		&cli.BoolFlag{
 			Name:  "no-score-check",
@@ -251,6 +197,19 @@ func Flags() []cli.Flag {
 		&cli.BoolFlag{
 			Name:  "force",
 			Usage: "force the installation of the binary even if it is already installed",
+		},
+		&cli.BoolFlag{
+			Name:    "use-dist-cache",
+			Sources: cli.EnvVars("DISTILLERY_USE_CACHE"),
+			Usage:   "[EXPERIMENTAL] use the distillery pass-through cache for github to avoid authentication",
+		},
+		&cli.StringFlag{
+			Name:    "dist-cache-url",
+			Value:   "https://api.github.cache.dist.sh",
+			Sources: cli.EnvVars("DISTILLERY_CACHE_URL"),
+			Usage: "[EXPERIMENTAL] specify the base url for the distillery pass-through cache" +
+				" for github to avoid authentication and rate limiting",
+			Hidden: true,
 		},
 	}
 }
@@ -263,7 +222,6 @@ func init() {
 		Before:      Before,
 		Flags:       append(Flags(), common.Flags()...),
 		Action:      Execute,
-		Args:        true,
 		ArgsUsage:   "[provider/]owner/repo[@version]",
 	}
 

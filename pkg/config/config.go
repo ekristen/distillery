@@ -105,11 +105,14 @@ func (c *Config) GetAlias(name string) *Alias {
 
 // MkdirAll - create all the directories
 func (c *Config) MkdirAll() error {
-	paths := []string{c.BinPath, c.GetOptPath(), c.GetCachePath(), c.GetMetadataPath(), c.GetDownloadsPath()}
+	// BinPath needs 0755 so other tools can traverse it via $PATH.
+	// All other directories are internal and use 0700 (owner-only).
+	if err := os.MkdirAll(c.BinPath, 0755); err != nil {
+		return err
+	}
 
-	for _, path := range paths {
-		err := os.MkdirAll(path, 0755)
-		if err != nil {
+	for _, path := range []string{c.GetOptPath(), c.GetCachePath(), c.GetMetadataPath(), c.GetDownloadsPath()} {
+		if err := os.MkdirAll(path, 0700); err != nil {
 			return err
 		}
 	}

@@ -18,7 +18,8 @@ import (
 	"github.com/h2non/filetype"
 	"github.com/h2non/filetype/matchers"
 	"github.com/mholt/archives"
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 
 	"github.com/ekristen/distillery/pkg/common"
 	"github.com/ekristen/distillery/pkg/osconfig"
@@ -40,6 +41,7 @@ var (
 	sbomType     = filetype.AddType("sbom", "application/octet-stream")
 	bomType      = filetype.AddType("bom", "application/octet-stream")
 	pubType      = filetype.AddType("pub", "text/plain")
+	proofType    = filetype.AddType("proof", "application/octet-stream")
 	tarGzType    = filetype.AddType("tgz", "application/tar+gzip")
 	zstdType     = filetype.AddType("zst", "application/zstd")
 
@@ -232,7 +234,7 @@ func (a *Asset) Classify(name string) Type { //nolint:gocyclo
 			aType = Archive
 		case matchers.TypeExe:
 			aType = Binary
-		case sigType, ascType, minisigType:
+		case sigType, ascType, minisigType, proofType:
 			aType = Signature
 		case pemType, pubType, certType, crtType:
 			aType = Key
@@ -250,7 +252,7 @@ func (a *Asset) Classify(name string) Type { //nolint:gocyclo
 	}
 
 	if aType == Unknown {
-		logrus.Tracef("classifying asset based on name: %s", name)
+		log.Trace().Str("app", a.GetName()).Msgf("classifying asset based on name: %s", name)
 		name = strings.ToLower(name)
 		if strings.HasSuffix(name, ".sha512") ||
 			strings.HasSuffix(name, ".sha512sum") ||
@@ -281,7 +283,7 @@ func (a *Asset) Classify(name string) Type { //nolint:gocyclo
 		}
 	}
 
-	logrus.Tracef("classified: %s - %s (type: %d)", name, aType, aType)
+	log.Trace().Str("app", a.GetName()).Msgf("classified: %s - %s (type: %d)", name, aType, aType)
 
 	return aType
 }
@@ -309,28 +311,41 @@ func (a *Asset) copyFile(srcFile, dstFile string) error {
 	return nil
 }
 
+// createSymlink removes an existing file at linkPath and creates a symlink pointing to target.
+func (a *Asset) createSymlink(target, linkPath string) error {
+	log.Debug().Str("app", a.GetName()).Msgf("creating symlink: %s -> %s", linkPath, target)
+
+	if err := os.Remove(linkPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to remove existing symlink %s: %w", linkPath, err)
+	}
+	if err := os.Symlink(target, linkPath); err != nil {
+		return fmt.Errorf("failed to create symlink %s -> %s: %w", linkPath, target, err)
+	}
+	return nil
+}
+
 // determineInstallable determines if the file is installable or not based on the mimetype
 func (a *Asset) determineInstallable() {
-	logrus.Tracef("files to process: %d", len(a.Files))
+	log.Trace().Str("app", a.GetName()).Msgf("files to process: %d", len(a.Files))
 	for _, file := range a.Files {
 		// Actual path to the downloaded/extracted file
 		fullPath := filepath.Join(a.TempDir, file.Name)
 
-		logrus.Debug("checking file for installable: ", file.Name)
+		log.Debug().Str("app", a.GetName()).Msgf("checking file for installable: %s", file.Name)
 		m, err := mimetype.DetectFile(fullPath)
 		if err != nil {
-			logrus.WithError(err).Warn("unable to determine mimetype")
+			log.Warn().Str("app", a.GetName()).Err(err).Msg("unable to determine mimetype")
 		}
 
-		logrus.Debug("found mimetype: ", m.String())
+		log.Debug().Str("app", a.GetName()).Msgf("found mimetype: %s", m.String())
 
 		if slices.Contains(ignoreFileExtensions, m.Extension()) {
-			logrus.Tracef("ignoring file: %s", file.Name)
+			log.Trace().Str("app", a.GetName()).Msgf("ignoring file: %s", file.Name)
 			continue
 		}
 
 		if slices.Contains(executableMimetypes, m.String()) {
-			logrus.Debugf("found installable executable: %s, %s, %s", file.Name, m.String(), m.Extension())
+			log.Debug().Str("app", a.GetName()).Msgf("found installable executable: %s, %s, %s", file.Name, m.String(), m.Extension())
 			file.Installable = true
 		}
 
@@ -347,7 +362,7 @@ func (a *Asset) determineInstallable() {
 func (a *Asset) determineELF(path string) bool {
 	f, err := os.Open(path)
 	if err != nil {
-		logrus.WithError(err).Tracef("unable to open file for elf determination1: %s", path)
+		log.Trace().Str("app", a.GetName()).Err(err).Msgf("unable to open file for elf determination1: %s", path)
 		return false
 	}
 	defer f.Close()
@@ -355,7 +370,7 @@ func (a *Asset) determineELF(path string) bool {
 	magic := make([]byte, 4)
 	_, err = f.Read(magic)
 	if err != nil {
-		logrus.WithError(err).Trace("error reading file")
+		log.Trace().Str("app", a.GetName()).Err(err).Msg("error reading file")
 		return false
 	}
 
@@ -365,12 +380,63 @@ func (a *Asset) determineELF(path string) bool {
 
 var versionReplace = regexp.MustCompile(`\d+\.\d+`)
 
+// cleanFilename strips OS, arch, and version info from a filename to produce a clean binary name.
+func (a *Asset) cleanFilename(name string) string {
+	log.Trace().Str("app", a.GetName()).Msgf("pre-dstFilename: %s", name)
+
+	// Strip known archive/compression extensions (e.g. .gz, .tar.gz, .zip) so that
+	// files from compressed-only formats like .gz produce a clean binary name.
+	for {
+		ext := filepath.Ext(name)
+		if ext == "" || len(ext) > 5 || strings.Contains(ext, "_") {
+			break
+		}
+		trimmed := strings.TrimSuffix(name, ext)
+		if trimmed == name {
+			break
+		}
+		name = trimmed
+	}
+
+	// Strip the OS and Arch from the filename if it exists, this happens mostly when the binary is being
+	// uploaded directly instead of being encapsulated in a tarball or zip file
+	name = strings.ReplaceAll(name, a.OS, "")
+	name = strings.ReplaceAll(name, a.Arch, "")
+
+	osData := osconfig.New(a.OS, a.Arch)
+	for _, osAlias := range osData.GetAliases() {
+		name = strings.ReplaceAll(name, osAlias, "")
+	}
+	for _, osArch := range osData.GetArchitectures() {
+		name = strings.ReplaceAll(name, osArch, "")
+	}
+
+	name = strings.ReplaceAll(name, fmt.Sprintf("v%s", a.Version), "")
+	name = strings.ReplaceAll(name, a.Version, "")
+	name = versionReplace.ReplaceAllString(name, "")
+
+	if a.OS == osconfig.Windows || strings.HasSuffix(name, ".exe") {
+		name = strings.TrimSuffix(name, ".exe")
+	}
+
+	name = strings.TrimSpace(name)
+	name = strings.TrimRight(name, "-")
+	name = strings.TrimRight(name, "_")
+
+	if a.OS == osconfig.Windows {
+		name = fmt.Sprintf("%s.exe", name)
+	}
+
+	log.Trace().Str("app", a.GetName()).Msgf("post-dstFilename: %s", name)
+
+	return name
+}
+
 // Install installs the asset
-// TODO(ek): simplify this function
 func (a *Asset) Install(id, binDir, optDir string) error {
 	found := false
 
-	if err := os.MkdirAll(optDir, 0755); err != nil {
+	if err := os.MkdirAll(optDir, 0700); err != nil {
 		return err
 	}
 
@@ -378,12 +444,12 @@ func (a *Asset) Install(id, binDir, optDir string) error {
 
 	for _, file := range a.Files {
 		if !file.Installable {
-			logrus.Tracef("skipping file: %s", file.Name)
+			log.Trace().Str("app", a.GetName()).Msgf("skipping file: %s", file.Name)
 			continue
 		}
 
 		found = true
-		logrus.Debugf("installing file: %s", file.Name)
+		log.Debug().Str("app", a.GetName()).Msgf("installing file: %s", file.Name)
 
 		fullPath := filepath.Join(a.TempDir, file.Name)
 		dstFilename := filepath.Base(fullPath)
@@ -391,39 +457,7 @@ func (a *Asset) Install(id, binDir, optDir string) error {
 			dstFilename = file.Alias
 		}
 
-		logrus.Trace("pre-dstFilename: ", dstFilename)
-
-		// Strip the OS and Arch from the filename if it exists, this happens mostly when the binary is being
-		// uploaded directly instead of being encapsulated in a tarball or zip file
-		dstFilename = strings.ReplaceAll(dstFilename, a.OS, "")
-		dstFilename = strings.ReplaceAll(dstFilename, a.Arch, "")
-
-		osData := osconfig.New(a.OS, a.Arch)
-		for _, osAlias := range osData.GetAliases() {
-			dstFilename = strings.ReplaceAll(dstFilename, osAlias, "")
-		}
-		for _, osArch := range osData.GetArchitectures() {
-			dstFilename = strings.ReplaceAll(dstFilename, osArch, "")
-		}
-
-		dstFilename = strings.ReplaceAll(dstFilename, fmt.Sprintf("v%s", a.Version), "")
-		dstFilename = strings.ReplaceAll(dstFilename, a.Version, "")
-
-		dstFilename = versionReplace.ReplaceAllString(dstFilename, "")
-
-		if a.OS == osconfig.Windows || strings.HasSuffix(dstFilename, ".exe") {
-			dstFilename = strings.TrimSuffix(dstFilename, ".exe")
-		}
-
-		dstFilename = strings.TrimSpace(dstFilename)
-		dstFilename = strings.TrimRight(dstFilename, "-")
-		dstFilename = strings.TrimRight(dstFilename, "_")
-
-		if a.OS == osconfig.Windows {
-			dstFilename = fmt.Sprintf("%s.exe", dstFilename)
-		}
-
-		logrus.Tracef("post-dstFilename: %s", dstFilename)
+		dstFilename = a.cleanFilename(dstFilename)
 
 		destBinaryName := dstFilename
 		// Note: copy to the opt dir for organization
@@ -434,21 +468,19 @@ func (a *Asset) Install(id, binDir, optDir string) error {
 
 		versionedBinFilename := fmt.Sprintf("%s@%s", defaultBinFilename, strings.TrimLeft(a.Version, "v"))
 
-		logrus.Debugf("copying executable: %s to %s", fullPath, destBinFilename)
+		log.Debug().Str("app", a.GetName()).Msgf("copying executable: %s to %s", fullPath, destBinFilename)
 		if err := a.copyFile(fullPath, destBinFilename); err != nil {
 			return err
 		}
 
-		// create symlink
-		// TODO: check if symlink exists
-		// TODO: handle errors
+		// create symlinks
 		if runtime.GOOS == a.OS && runtime.GOARCH == a.Arch {
-			logrus.Debugf("creating symlink: %s to %s", defaultBinFilename, destBinFilename)
-			logrus.Debugf("creating symlink: %s to %s", versionedBinFilename, destBinFilename)
-			_ = os.Remove(defaultBinFilename)
-			_ = os.Remove(versionedBinFilename)
-			_ = os.Symlink(destBinFilename, defaultBinFilename)
-			_ = os.Symlink(destBinFilename, versionedBinFilename)
+			if err := a.createSymlink(destBinFilename, defaultBinFilename); err != nil {
+				return err
+			}
+			if err := a.createSymlink(destBinFilename, versionedBinFilename); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -460,15 +492,15 @@ func (a *Asset) Install(id, binDir, optDir string) error {
 }
 
 func (a *Asset) Cleanup() error {
-	if logrus.GetLevel() == logrus.TraceLevel {
-		logrus.Tracef("walking tempdir")
+	if log.Logger.GetLevel() == zerolog.TraceLevel {
+		log.Trace().Str("app", a.GetName()).Msgf("walking tempdir")
 		// walk the a.TempDir and log all the files
 		err := filepath.Walk(a.TempDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
 
-			logrus.Tracef("file: %s", path)
+			log.Trace().Str("app", a.GetName()).Msgf("file: %s", path)
 			return nil
 		})
 		if err != nil {
@@ -476,7 +508,7 @@ func (a *Asset) Cleanup() error {
 		}
 	}
 
-	logrus.WithField("asset", a.GetName()).Tracef("cleaning up temp dir: %s", a.TempDir)
+	log.Trace().Str("asset", a.GetName()).Msgf("cleaning up temp dir: %s", a.TempDir)
 	return os.RemoveAll(a.TempDir)
 }
 
@@ -494,32 +526,43 @@ func (a *Asset) Extract() error {
 		return err
 	}
 
-	logrus.Debugf("opened and extracting file: %s", a.DownloadPath)
+	log.Debug().Str("app", a.GetName()).Msgf("opened and extracting file: %s", a.DownloadPath)
 
 	return a.doExtract(fileHandler)
 }
 
 func (a *Asset) doExtract(stream io.Reader) error {
-	logrus.Debug("identifying archive format")
+	log.Debug().Str("app", a.GetName()).Msg("identifying archive format")
 	format, stream, err := archives.Identify(context.TODO(), a.Extension, stream)
 	if err != nil && !errors.Is(err, archives.NoMatch) {
 		return err
 	}
 
 	if errors.Is(err, archives.NoMatch) && a.GetType() == Archive {
-		logrus.Warn("unable to identify archive format")
+		log.Warn().Str("app", a.GetName()).Msg("unable to identify archive format")
 		return errors.New("unable to identify or invalid archive format")
 	}
 
-	logrus.Debug("identified archive format: ", format)
+	log.Debug().Str("app", a.GetName()).Msgf("identified archive format: %s", format)
 
-	if ex, ok := format.(archives.Extractor); ok {
-		logrus.Debug("extracting archive")
-		if err := ex.Extract(context.TODO(), stream, a.processArchive); err != nil {
+	switch f := format.(type) {
+	case archives.Extractor:
+		log.Debug().Str("app", a.GetName()).Msg("extracting archive")
+		if err := f.Extract(context.TODO(), stream, a.processArchive); err != nil {
 			return err
 		}
-	} else {
-		logrus.Debug("processing direct file")
+	case archives.Decompressor:
+		log.Debug().Str("app", a.GetName()).Msg("decompressing file")
+		rc, err := f.OpenReader(stream)
+		if err != nil {
+			return err
+		}
+		defer rc.Close()
+		if err := a.processDirect(rc); err != nil {
+			return err
+		}
+	default:
+		log.Debug().Str("app", a.GetName()).Msg("processing direct file")
 		if err := a.processDirect(stream); err != nil {
 			return err
 		}
@@ -529,7 +572,7 @@ func (a *Asset) doExtract(stream io.Reader) error {
 }
 
 func (a *Asset) processDirect(in io.Reader) error {
-	logrus.Tracef("processing direct file")
+	log.Trace().Str("app", a.GetName()).Msgf("processing direct file")
 	outFile, err := os.Create(filepath.Join(a.TempDir, filepath.Base(a.DownloadPath)))
 	if err != nil {
 		return err
@@ -545,21 +588,61 @@ func (a *Asset) processDirect(in io.Reader) error {
 	return nil
 }
 
+// safeArchivePath validates that nameInArchive does not escape baseDir via
+// path traversal, absolute paths, or symlinks. Returns the resolved target path.
+func safeArchivePath(baseDir, nameInArchive string) (string, error) {
+	cleanName := filepath.Clean(nameInArchive)
+	if filepath.IsAbs(cleanName) || strings.HasPrefix(cleanName, "..") {
+		return "", fmt.Errorf("archive member path escapes extraction directory: %s", nameInArchive)
+	}
+
+	target := filepath.Join(baseDir, cleanName)
+
+	absTarget, err := filepath.Abs(target)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve archive member path: %w", err)
+	}
+	absBase, err := filepath.Abs(baseDir)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve base directory path: %w", err)
+	}
+	if !strings.HasPrefix(absTarget, absBase+string(filepath.Separator)) && absTarget != absBase {
+		return "", fmt.Errorf("archive member path escapes extraction directory: %s", nameInArchive)
+	}
+
+	return target, nil
+}
+
 func (a *Asset) processArchive(ctx context.Context, f archives.FileInfo) error {
-	// do something with the file here; or, if you only want a specific file or directory,
-	// just return until you come across the desired f.NameInArchive value(s)
-	target := filepath.Join(a.TempDir, f.Name())
-	logrus.Tracef("zip > target %s", target)
+	// Reject symlinks to prevent symlink attacks
+	if f.Mode()&os.ModeSymlink != 0 {
+		log.Warn().Str("app", a.GetName()).Msgf("skipping symlink in archive: %s", f.NameInArchive)
+		return nil
+	}
+
+	target, err := safeArchivePath(a.TempDir, f.NameInArchive)
+	if err != nil {
+		return err
+	}
+
+	log.Trace().Str("app", a.GetName()).Msgf("zip > target %s", target)
 
 	if f.Mode().IsDir() {
 		if _, err := os.Stat(target); err != nil {
 			if err := os.MkdirAll(target, 0755); err != nil {
 				return err
 			}
-			logrus.Tracef("tar > create directory %s", target)
+			log.Trace().Str("app", a.GetName()).Msgf("tar > create directory %s", target)
 		}
 
 		return nil
+	}
+
+	// Ensure parent directory exists (some archives don't have explicit directory entries)
+	if dir := filepath.Dir(target); dir != "" {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return err
+		}
 	}
 
 	tc, err := f.Open()
@@ -568,7 +651,9 @@ func (a *Asset) processArchive(ctx context.Context, f archives.FileInfo) error {
 	}
 	defer tc.Close()
 
-	nf, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, f.Mode())
+	// Mask setuid/setgid/sticky bits from archive permissions
+	mode := f.Mode() & 0777
+	nf, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, mode)
 	if err != nil {
 		return err
 	}
@@ -579,9 +664,9 @@ func (a *Asset) processArchive(ctx context.Context, f archives.FileInfo) error {
 		return err
 	}
 
-	a.Files = append(a.Files, &File{Name: f.Name()})
+	a.Files = append(a.Files, &File{Name: f.NameInArchive})
 
-	logrus.Tracef("zip > create file %s", target)
+	log.Trace().Str("app", a.GetName()).Msgf("zip > create file %s", target)
 
 	return nil
 }

@@ -5,14 +5,13 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 
 	"github.com/google/go-github/v72/github"
-	"github.com/sirupsen/logrus"
 
 	"github.com/ekristen/distillery/pkg/asset"
+	"github.com/ekristen/distillery/pkg/httpclient"
 )
 
 type GitHubAsset struct {
@@ -31,15 +30,17 @@ func (a *GitHubAsset) Path() string {
 }
 
 func (a *GitHubAsset) Download(ctx context.Context) error {
+	logger := a.GitHub.Logger
+
 	rc, url, err := a.GitHub.client.Repositories.DownloadReleaseAsset(
-		ctx, a.GitHub.GetOwner(), a.GitHub.GetRepo(), a.ReleaseAsset.GetID(), http.DefaultClient)
+		ctx, a.GitHub.GetOwner(), a.GitHub.GetRepo(), a.ReleaseAsset.GetID(), httpclient.NewSafeClient())
 	if err != nil {
 		return err
 	}
 	defer rc.Close()
 
 	if url != "" {
-		logrus.Tracef("url: %s", url)
+		logger.Trace().Msgf("url: %s", url)
 	}
 
 	downloadsDir := a.GitHub.Options.Config.GetDownloadsPath()
@@ -58,7 +59,7 @@ func (a *GitHubAsset) Download(ctx context.Context) error {
 	}
 
 	if stats != nil {
-		logrus.Debugf("file already downloaded: %s", assetFile)
+		logger.Debug().Msgf("file already downloaded: %s", assetFile)
 		return nil
 	}
 
@@ -83,13 +84,13 @@ func (a *GitHubAsset) Download(ctx context.Context) error {
 		return err
 	}
 
-	logrus.Tracef("hash: %x", hasher.Sum(nil))
+	logger.Trace().Msgf("hash: %x", hasher.Sum(nil))
 
 	_ = os.WriteFile(fmt.Sprintf("%s.sha256", assetFile), []byte(fmt.Sprintf("%x", hasher.Sum(nil))), 0600)
 	a.Hash = string(hasher.Sum(nil))
 
-	logrus.Tracef("Downloaded asset to: %s", tmpFile.Name())
-	logrus.Tracef("Release asset name: %s", a.ReleaseAsset.GetName())
+	logger.Trace().Msgf("Downloaded asset to: %s", tmpFile.Name())
+	logger.Trace().Msgf("Release asset name: %s", a.ReleaseAsset.GetName())
 
 	return nil
 }
