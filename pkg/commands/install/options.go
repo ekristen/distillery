@@ -79,7 +79,7 @@ func DoInstall(ctx context.Context, opts *Options) error {
 	if opts.UseDistCache {
 		logger.Warn().Msg("[EXPERIMENTAL FEATURE] using distillery pass-through cache, this may not work as expected")
 	}
-	logger.Info().Msg("preparing source")
+	logger.Info().Msg("fetching release info")
 
 	src, err := NewSource(name, &provider.Options{
 		OS:     opts.OS,
