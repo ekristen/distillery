@@ -47,7 +47,7 @@ func Execute(ctx context.Context, c *cli.Command) error {
 			opts := OptionsFromCLI(c, cfg)
 			opts.App = app
 			// Strip hint before parsing version (hint is handled later in NewSource)
-			cleaned, _ := extractHint(app)
+			cleaned, _ := extractBinaryName(app)
 			parts := strings.SplitN(cleaned, "@", 2)
 			if len(parts) == 2 {
 				opts.Version = parts[1]
@@ -85,8 +85,8 @@ func Before(ctx context.Context, c *cli.Command) (context.Context, error) {
 		}
 	}
 
-	// Strip binary hint before parsing version (hint is handled later in NewSource)
-	firstArg, _ := extractHint(c.Args().First())
+	// Strip binary name before parsing version (handled later in NewSource)
+	firstArg, _ := extractBinaryName(c.Args().First())
 	parts := strings.Split(firstArg, "@")
 	if len(parts) == 2 {
 		_ = c.Set("version", parts[1])

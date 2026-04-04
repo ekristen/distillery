@@ -12,13 +12,13 @@ import (
 func NewSource(src string, opts *provider.Options) (provider.ISource, error) { //nolint:funlen,gocyclo
 	detectedOS := osconfig.New(opts.OS, opts.Arch)
 
-	// Extract binary hint (e.g. owner/repo:logcli@version or owner/repo@version:logcli)
-	src, hint := extractHint(src)
-	if hint != "" {
+	// Extract binary name (e.g. owner/repo:logcli@version or owner/repo@version:logcli)
+	src, binaryName := extractBinaryName(src)
+	if binaryName != "" {
 		if opts.Settings == nil {
 			opts.Settings = map[string]interface{}{}
 		}
-		opts.Settings["binary-hint"] = hint
+		opts.Settings["binary-hint"] = binaryName
 	}
 
 	version := "latest"
@@ -217,24 +217,24 @@ func NewSource(src string, opts *provider.Options) (provider.ISource, error) { /
 	return nil, fmt.Errorf("unknown source: %s", src)
 }
 
-// extractHint extracts a binary hint from a source string.
-// Supports both owner/repo:hint@version and owner/repo@version:hint formats.
-// Returns the source string with the hint removed, and the hint itself.
-func extractHint(src string) (cleaned, hint string) {
+// extractBinaryName extracts a binary name from a source string.
+// Supports both owner/repo:binary@version and owner/repo@version:binary formats.
+// Returns the source string with the binary name removed, and the binary name itself.
+func extractBinaryName(src string) (cleaned, binaryName string) {
 	idx := strings.Index(src, ":")
 	if idx == -1 {
 		return src, ""
 	}
 
-	hint = src[idx+1:]
+	binaryName = src[idx+1:]
 	cleaned = src[:idx]
 
-	// If hint contains @, the version was after the hint (e.g. repo:hint@version)
-	if atIdx := strings.Index(hint, "@"); atIdx != -1 {
-		version := hint[atIdx+1:]
-		hint = hint[:atIdx]
+	// If binary name contains @, the version was after it (e.g. repo:binary@version)
+	if atIdx := strings.Index(binaryName, "@"); atIdx != -1 {
+		version := binaryName[atIdx+1:]
+		binaryName = binaryName[:atIdx]
 		cleaned = cleaned + "@" + version
 	}
 
-	return cleaned, hint
+	return cleaned, binaryName
 }

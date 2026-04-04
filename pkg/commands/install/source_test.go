@@ -246,56 +246,56 @@ func Test_NewSource(t *testing.T) {
 	}
 }
 
-func Test_extractHint(t *testing.T) {
+func Test_extractBinaryName(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		input    string
-		wantSrc  string
-		wantHint string
+		input      string
+		wantSrc    string
+		wantBinary string
 	}{
 		{
-			input:    "grafana/loki",
-			wantSrc:  "grafana/loki",
-			wantHint: "",
+			input:      "grafana/loki",
+			wantSrc:    "grafana/loki",
+			wantBinary: "",
 		},
 		{
-			input:    "grafana/loki:logcli",
-			wantSrc:  "grafana/loki",
-			wantHint: "logcli",
+			input:      "grafana/loki:logcli",
+			wantSrc:    "grafana/loki",
+			wantBinary: "logcli",
 		},
 		{
-			input:    "grafana/loki:logcli@3.0.0",
-			wantSrc:  "grafana/loki@3.0.0",
-			wantHint: "logcli",
+			input:      "grafana/loki:logcli@3.0.0",
+			wantSrc:    "grafana/loki@3.0.0",
+			wantBinary: "logcli",
 		},
 		{
-			input:    "grafana/loki@3.0.0:logcli",
-			wantSrc:  "grafana/loki@3.0.0",
-			wantHint: "logcli",
+			input:      "grafana/loki@3.0.0:logcli",
+			wantSrc:    "grafana/loki@3.0.0",
+			wantBinary: "logcli",
 		},
 		{
-			input:    "github/grafana/loki:logcli@3.0.0",
-			wantSrc:  "github/grafana/loki@3.0.0",
-			wantHint: "logcli",
+			input:      "github/grafana/loki:logcli@3.0.0",
+			wantSrc:    "github/grafana/loki@3.0.0",
+			wantBinary: "logcli",
 		},
 		{
-			input:    "github/grafana/loki@3.0.0:logcli",
-			wantSrc:  "github/grafana/loki@3.0.0",
-			wantHint: "logcli",
+			input:      "github/grafana/loki@3.0.0:logcli",
+			wantSrc:    "github/grafana/loki@3.0.0",
+			wantBinary: "logcli",
 		},
 		{
-			input:    "ekristen/aws-nuke@3.1.1",
-			wantSrc:  "ekristen/aws-nuke@3.1.1",
-			wantHint: "",
+			input:      "ekristen/aws-nuke@3.1.1",
+			wantSrc:    "ekristen/aws-nuke@3.1.1",
+			wantBinary: "",
 		},
 	}
 
 	for _, tt := range cases {
 		t.Run(tt.input, func(t *testing.T) {
-			gotSrc, gotHint := extractHint(tt.input)
+			gotSrc, gotHint := extractBinaryName(tt.input)
 			assert.Equal(t, tt.wantSrc, gotSrc)
-			assert.Equal(t, tt.wantHint, gotHint)
+			assert.Equal(t, tt.wantBinary, gotHint)
 		})
 	}
 }
@@ -304,29 +304,29 @@ func Test_NewSourceWithHint(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		source   string
-		wantHint string
-		wantRepo string
+		source     string
+		wantBinary string
+		wantRepo   string
 	}{
 		{
-			source:   "grafana/loki:logcli",
-			wantHint: "logcli",
-			wantRepo: "loki",
+			source:     "grafana/loki:logcli",
+			wantBinary: "logcli",
+			wantRepo:   "loki",
 		},
 		{
-			source:   "grafana/loki:logcli@3.0.0",
-			wantHint: "logcli",
-			wantRepo: "loki",
+			source:     "grafana/loki:logcli@3.0.0",
+			wantBinary: "logcli",
+			wantRepo:   "loki",
 		},
 		{
-			source:   "grafana/loki@3.0.0:logcli",
-			wantHint: "logcli",
-			wantRepo: "loki",
+			source:     "grafana/loki@3.0.0:logcli",
+			wantBinary: "logcli",
+			wantRepo:   "loki",
 		},
 		{
-			source:   "github/grafana/loki:logcli",
-			wantHint: "logcli",
-			wantRepo: "loki",
+			source:     "github/grafana/loki:logcli",
+			wantBinary: "logcli",
+			wantRepo:   "loki",
 		},
 	}
 
@@ -343,7 +343,7 @@ func Test_NewSourceWithHint(t *testing.T) {
 			got, err := NewSource(tt.source, opts)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.wantRepo, got.GetRepo())
-			assert.Equal(t, tt.wantHint, opts.Settings["binary-hint"])
+			assert.Equal(t, tt.wantBinary, opts.Settings["binary-hint"])
 		})
 	}
 }

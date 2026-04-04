@@ -39,8 +39,8 @@ type Options struct {
 
 // resolveNameAndVersion resolves the app name and version from config aliases and CLI input.
 func resolveNameAndVersion(cfg *config.Config, appName, optVersion string, logger *zerolog.Logger) (name, version string) {
-	// Strip binary hint before alias lookup; preserve it to re-append after resolution
-	cleanedName, hint := extractHint(appName)
+	// Strip binary name before alias lookup; preserve it to re-append after resolution
+	cleanedName, hint := extractBinaryName(appName)
 	nameParts := strings.Split(cleanedName, "@")
 	name = cleanedName
 	version = optVersion
@@ -61,7 +61,7 @@ func resolveNameAndVersion(cfg *config.Config, appName, optVersion string, logge
 		version = nameParts[1]
 	}
 
-	// Re-append binary hint so NewSource can extract it
+	// Re-append binary name so NewSource can extract it
 	if hint != "" {
 		name = fmt.Sprintf("%s:%s", name, hint)
 	}

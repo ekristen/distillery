@@ -134,19 +134,18 @@ func (p *Provider) discoverBinary(names []string, version string) error { //noli
 			fileScored[k] = []score.Sorted{}
 		}
 
+		// When a binary name is specified (e.g. grafana/loki:logcli), use it as the
+		// primary scoring term instead of the repo name.
 		terms := names
+		if binaryName, ok := p.Options.Settings["binary-hint"].(string); ok && binaryName != "" {
+			p.Logger.Debug().Msgf("using binary name: %s", binaryName)
+			terms = []string{binaryName}
+		}
 		terms = append(terms, p.OSConfig.GetLibraryNames()...)
 
 		weightedTerms := map[string]int{
 			"source": -20,  // as in source.tar.gz
 			"update": -100, // deprioritize update binaries from rust/go distributions
-		}
-
-		// If a binary hint is provided (e.g. grafana/loki#logcli), use it as a
-		// high-weight term to prefer assets matching the hint over the repo name.
-		if hint, ok := p.Options.Settings["binary-hint"].(string); ok && hint != "" {
-			p.Logger.Debug().Msgf("using binary hint: %s", hint)
-			weightedTerms[hint] = 100
 		}
 
 		fileScored[k] = score.Score(v, &score.Options{
