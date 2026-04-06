@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/google/go-github/v72/github"
+	"github.com/google/go-github/v84/github"
 
 	"github.com/ekristen/distillery/pkg/asset"
 	"github.com/ekristen/distillery/pkg/httpclient"

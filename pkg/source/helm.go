@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/google/go-github/v72/github"
+	"github.com/google/go-github/v84/github"
 	"github.com/gregjones/httpcache"
 
 	"github.com/ekristen/distillery/pkg/asset"
