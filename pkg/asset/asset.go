@@ -552,6 +552,16 @@ func (a *Asset) doExtract(stream io.Reader) error {
 			return err
 		}
 	case archives.Decompressor:
+		// Skip decompression for Unknown-type assets to avoid false positives
+		// from content sniffing (e.g., brotli matching raw binaries).
+		// Legitimate compressed files have extensions and are classified as Archive.
+		if a.GetType() != Archive {
+			log.Debug().Str("app", a.GetName()).Msg("skipping decompression for non-archive asset, processing as direct file")
+			if err := a.processDirect(stream); err != nil {
+				return err
+			}
+			return nil
+		}
 		log.Debug().Str("app", a.GetName()).Msg("decompressing file")
 		rc, err := f.OpenReader(stream)
 		if err != nil {
