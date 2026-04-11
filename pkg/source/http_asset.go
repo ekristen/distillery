@@ -31,7 +31,7 @@ func (a *HTTPAsset) Path() string {
 func (a *HTTPAsset) Download(ctx context.Context) error {
 	logger := a.Source.GetOptions().Logger
 	return asset.DownloadHTTP(ctx, a.Asset, a.URL,
-		a.Source.GetOptions().Config.GetDownloadsPath(),
+		a.Source.GetDownloadsDir(),
 		filepath.Base(a.URL),
 		&logger, nil)
 }
