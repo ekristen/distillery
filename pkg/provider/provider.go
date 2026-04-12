@@ -182,6 +182,9 @@ func (p *Provider) discoverBinary(names []string, version string) error { //noli
 
 	// Find the single highest-scoring asset across all types
 	bestScore := 39
+	if p.Options.Settings["no-score-check"].(bool) {
+		bestScore = -1000
+	}
 	bestKey := ""
 	for _, t := range []asset.Type{asset.Unknown, asset.Binary, asset.Archive} {
 		if len(fileScored[t]) > 0 {

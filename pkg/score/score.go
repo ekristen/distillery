@@ -60,7 +60,7 @@ func (o *Options) getMultiSegmentTerms() []string {
 
 	var result []string
 	for _, term := range allTerms {
-		if strings.ContainsAny(term, "-_") {
+		if strings.ContainsAny(term, "-_.") {
 			result = append(result, term)
 		}
 	}
@@ -91,7 +91,7 @@ func segmentize(filename string, multiSegmentTerms []string) []string {
 	}
 
 	segments := strings.FieldsFunc(modified, func(r rune) bool {
-		return r == '-' || r == '_'
+		return r == '-' || r == '_' || r == '.'
 	})
 
 	for i, seg := range segments {
@@ -221,7 +221,7 @@ func calculateAccuracyScore(filename string, knownTerms []string) int {
 
 	var multiSegTerms []string
 	for _, term := range knownTerms {
-		if strings.ContainsAny(term, "-_") {
+		if strings.ContainsAny(term, "-_.") {
 			multiSegTerms = append(multiSegTerms, term)
 		}
 	}

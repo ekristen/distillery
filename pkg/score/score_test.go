@@ -404,6 +404,38 @@ func TestScore(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "dot-delimited-binary",
+			names: []string{
+				"direnv.darwin-arm64",
+				"direnv.darwin-amd64",
+				"direnv.linux-amd64",
+				"direnv.linux-arm64",
+			},
+			opts: &Options{
+				OS:        []string{"darwin"},
+				Arch:      []string{"arm64"},
+				InvalidOS: []string{"linux", "windows"},
+			},
+			expected: []Sorted{
+				{
+					Key:   "direnv.darwin-arm64",
+					Value: 69, // os(40) + arch(30) + accuracy(-1: direnv-5, darwin+2, arm64+2)
+				},
+				{
+					Key:   "direnv.darwin-amd64",
+					Value: 32, // os(40) + accuracy(-8: direnv-5, darwin+2, amd64-5)
+				},
+				{
+					Key:   "direnv.linux-arm64",
+					Value: -18, // invalidOS(-40) + arch(30) + accuracy(-8: direnv-5, linux+2, arm64+2 => wait)
+				},
+				{
+					Key:   "direnv.linux-amd64",
+					Value: -55, // invalidOS(-40) + accuracy(-15: direnv-5, linux-5, amd64-5)
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {

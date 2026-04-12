@@ -701,6 +701,52 @@ func createEmptyZip(t *testing.T) string {
 	return tmpFile.Name()
 }
 
+func TestCleanFilename(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name     string
+		assetOS  string
+		arch     string
+		version  string
+		input    string
+		expected string
+	}{
+		{
+			name:     "standard-binary",
+			assetOS:  "linux",
+			arch:     "amd64",
+			version:  "1.0.0",
+			input:    "tool-linux-amd64",
+			expected: "tool",
+		},
+		{
+			name:     "dot-delimited-binary",
+			assetOS:  "darwin",
+			arch:     "arm64",
+			version:  "2.37.1",
+			input:    "direnv.darwin-arm64",
+			expected: "direnv",
+		},
+		{
+			name:     "dot-delimited-binary-linux",
+			assetOS:  "linux",
+			arch:     "amd64",
+			version:  "2.37.1",
+			input:    "direnv.linux-amd64",
+			expected: "direnv",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			a := New(c.input, c.input, c.assetOS, c.arch, c.version)
+			result := a.cleanFilename(c.input)
+			assert.Equal(t, c.expected, result)
+		})
+	}
+}
+
 // createFile creates a temporary file with the given content
 func createFile(t *testing.T, content []byte) string {
 	t.Helper()

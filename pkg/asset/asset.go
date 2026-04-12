@@ -422,6 +422,7 @@ func (a *Asset) cleanFilename(name string) string {
 	name = strings.TrimSpace(name)
 	name = strings.TrimRight(name, "-")
 	name = strings.TrimRight(name, "_")
+	name = strings.TrimRight(name, ".")
 
 	if a.OS == osconfig.Windows {
 		name = fmt.Sprintf("%s.exe", name)

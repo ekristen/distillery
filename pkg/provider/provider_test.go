@@ -782,7 +782,7 @@ func TestSourceDiscover(t *testing.T) {
 					arch:    "amd64",
 					version: "0.0.94",
 					expected: testSourceDiscoverExpected{
-						binary: "dug-osx-x64",
+						binary: "dug.0.0.94.osx-x64.tar.gz",
 					},
 				},
 				{
@@ -790,7 +790,7 @@ func TestSourceDiscover(t *testing.T) {
 					arch:    "amd64",
 					version: "0.0.94",
 					expected: testSourceDiscoverExpected{
-						binary: "dug-linux-x64",
+						binary: "dug.0.0.94.linux-x64.tar.gz",
 					},
 				},
 			},
