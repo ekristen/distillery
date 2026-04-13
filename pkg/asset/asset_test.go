@@ -736,6 +736,46 @@ func TestCleanFilename(t *testing.T) {
 			input:    "direnv.linux-amd64",
 			expected: "direnv",
 		},
+		{
+			name:     "versioned-dot-delimited-binary",
+			assetOS:  "linux",
+			arch:     "amd64",
+			version:  "3.12.2",
+			input:    "sops-v3.12.2.linux.amd64",
+			expected: "sops",
+		},
+		{
+			name:     "residual-version-like-substring",
+			assetOS:  "darwin",
+			arch:     "amd64",
+			version:  "1.12.3",
+			input:    "test-1.12.3-darwin-10.12-amd64",
+			expected: "test",
+		},
+		{
+			name:     "underscore-delimited",
+			assetOS:  "linux",
+			arch:     "amd64",
+			version:  "1.5.0",
+			input:    "terraform_1.5.0_linux_amd64",
+			expected: "terraform",
+		},
+		{
+			name:     "preserve-non-known-segments",
+			assetOS:  "linux",
+			arch:     "amd64",
+			version:  "1.0.0",
+			input:    "fancy-tool-extra-linux-amd64",
+			expected: "fancy-tool-extra",
+		},
+		{
+			name:     "windows-exe",
+			assetOS:  "windows",
+			arch:     "amd64",
+			version:  "3.12.2",
+			input:    "sops-v3.12.2.amd64.exe",
+			expected: "sops.exe",
+		},
 	}
 
 	for _, c := range cases {
