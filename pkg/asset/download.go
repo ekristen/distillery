@@ -35,6 +35,10 @@ func DownloadHTTP(ctx context.Context, a *Asset, url, downloadsDir, filename str
 		return nil
 	}
 
+	if err := os.MkdirAll(downloadsDir, 0700); err != nil {
+		return err
+	}
+
 	logger.Debug().Msgf("downloading asset: %s", url)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, http.NoBody)
