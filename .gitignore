@@ -4,3 +4,5 @@ public/
 .env*
 *.key
 installer.*
+.claude/settings.local.json
+distillery

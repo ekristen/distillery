@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -352,12 +353,12 @@ func (p *Provider) discoverSignature(version string) error { //nolint:gocyclo
 	switch p.SignatureType {
 	case SignatureTypeChecksum:
 		names = append(names, p.Checksum.GetName())
-		for _, ext := range []string{"sig", "asc"} {
+		for _, ext := range []string{"sig", "asc", "sigstore.json", "sigstore"} {
 			names = append(names, fmt.Sprintf("%s.%s", p.Checksum.GetName(), ext))
 		}
 	case SignatureTypeFile:
 		names = append(names, p.Binary.GetName())
-		for _, ext := range []string{"sig", "asc"} {
+		for _, ext := range []string{"sig", "asc", "sigstore.json", "sigstore"} {
 			names = append(names, fmt.Sprintf("%s.%s", p.Binary.GetName(), ext))
 		}
 	}
@@ -369,7 +370,7 @@ func (p *Provider) discoverSignature(version string) error { //nolint:gocyclo
 			continue
 		}
 
-		ext := []string{"sig", "asc", "sig.asc", "gpg", "keyless.sig", "proof"}
+		ext := []string{"sig", "asc", "sig.asc", "gpg", "keyless.sig", "proof", "sigstore", "sigstore.json"}
 		var detectedOS []string
 		var arch []string
 
@@ -665,58 +666,46 @@ func (p *Provider) verifyGPGSignature() error {
 }
 
 // TODO: refactor and clean up for the different signature verification methods
-func (p *Provider) verifyCosignSignature() error { //nolint:gocyclo
-	var bundle *cosign.Bundle
+func (p *Provider) verifyCosignSignature() error {
+	fileContent, err := p.readSignedContent()
+	if err != nil {
+		return err
+	}
+
+	// Sigstore Protobuf Bundles (.sigstore / .sigstore.json) are
+	// self-contained — they carry both the signing certificate and the
+	// signature. Check for this format first, even when a separate Key
+	// asset got paired by discovery (e.g. cosign 3.x releases ship
+	// unrelated pivkey files that otherwise get matched to sigstore
+	// signatures by the generic fallback matcher).
+	sigData, err := os.ReadFile(p.Signature.GetFilePath())
+	if err != nil {
+		return err
+	}
+	var sigstoreBundle *cosign.SigstoreBundle
+	if err := json.Unmarshal(sigData, &sigstoreBundle); err == nil && sigstoreBundle.IsSigstoreBundle() {
+		return p.verifySigstoreBundle(sigstoreBundle, fileContent)
+	}
+
+	// Legacy cosign --bundle format (PEM cert + base64 sig embedded in JSON).
 	if p.Key == nil {
-		sigData, err := os.ReadFile(p.Signature.GetFilePath())
-		if err != nil {
-			return err
-		}
+		var bundle *cosign.Bundle
 		if err := json.Unmarshal(sigData, &bundle); err != nil {
 			p.Logger.Debug().Err(err).Msg("unable to parse json for bundle signature")
 		}
-
-		if bundle == nil {
+		if bundle == nil || bundle.Certificate == "" {
 			p.Logger.Warn().Msg("skipping signature verification (no key)")
 			return nil
 		}
+		return p.verifyCosignBundle(bundle, fileContent)
 	}
 
 	p.Logger.Trace().Msg("verifying signature")
+	p.Logger.Trace().Msgf("key file name: %s", p.Key.GetName())
 
-	var fileContent []byte
-	var err error
-	if p.SignatureType == "checksum" {
-		p.Logger.Trace().Msgf("verifying checksum signature: %s", p.Checksum.GetName())
-		fileContent, err = os.ReadFile(p.Checksum.GetFilePath())
-		if err != nil {
-			return err
-		}
-	} else {
-		p.Logger.Trace().Msg("verifying binary signature")
-		fileContent, err = os.ReadFile(p.Binary.GetFilePath())
-		if err != nil {
-			return err
-		}
-	}
-
-	var sigData []byte
-	var publicKeyContentEncoded []byte
-	if p.Key != nil {
-		p.Logger.Trace().Msgf("key file name: %s", p.Key.GetName())
-		publicKeyContentEncoded, err = os.ReadFile(p.Key.GetFilePath())
-		if err != nil {
-			return err
-		}
-
-		sigData, err = os.ReadFile(p.Signature.GetFilePath())
-		if err != nil {
-			return err
-		}
-	} else if bundle != nil {
-		p.Logger.Trace().Msg("key file name via bundle")
-		publicKeyContentEncoded = []byte(bundle.Certificate)
-		sigData = []byte(bundle.Signature)
+	publicKeyContentEncoded, err := os.ReadFile(p.Key.GetFilePath())
+	if err != nil {
+		return err
 	}
 
 	publicKeyContent, err := base64.StdEncoding.DecodeString(string(publicKeyContentEncoded))
@@ -735,9 +724,7 @@ func (p *Provider) verifyCosignSignature() error { //nolint:gocyclo
 
 	p.Logger.Trace().Msgf("signature file name: %s", p.Signature.GetName())
 
-	dataHash := cosign.HashData(fileContent)
-
-	valid, err := cosign.VerifySignature(pubKey, dataHash, sigData)
+	valid, err := cosign.VerifySignature(pubKey, cosign.HashData(fileContent), sigData)
 	if err != nil {
 		return err
 	}
@@ -747,6 +734,105 @@ func (p *Provider) verifyCosignSignature() error { //nolint:gocyclo
 	}
 
 	p.Logger.Info().Msg("signature verified")
+	return nil
+}
+
+// readSignedContent returns the file contents that the signature covers:
+// either the checksum file (when signing happens over a checksum manifest)
+// or the binary asset itself.
+func (p *Provider) readSignedContent() ([]byte, error) {
+	if p.SignatureType == SignatureTypeChecksum {
+		p.Logger.Trace().Msgf("verifying checksum signature: %s", p.Checksum.GetName())
+		return os.ReadFile(p.Checksum.GetFilePath())
+	}
+	p.Logger.Trace().Msg("verifying binary signature")
+	return os.ReadFile(p.Binary.GetFilePath())
+}
+
+// verifyCosignBundle verifies the legacy cosign --bundle format, where the
+// certificate is PEM-encoded and the signature is base64 ASN.1 DER.
+func (p *Provider) verifyCosignBundle(bundle *cosign.Bundle, fileContent []byte) error {
+	p.Logger.Trace().Msg("key file name via bundle")
+
+	publicKeyContent, err := base64.StdEncoding.DecodeString(bundle.Certificate)
+	if err != nil {
+		if errors.Is(err, base64.CorruptInputError(0)) {
+			publicKeyContent = []byte(bundle.Certificate)
+		} else {
+			return err
+		}
+	}
+
+	pubKey, err := cosign.ParsePublicKey(publicKeyContent)
+	if err != nil {
+		return err
+	}
+
+	valid, err := cosign.VerifySignature(pubKey, cosign.HashData(fileContent), []byte(bundle.Signature))
+	if err != nil {
+		return err
+	}
+	if !valid {
+		return errors.New("unable to validate signature")
+	}
+
+	p.Logger.Info().Msg("signature verified")
+	return nil
+}
+
+// verifySigstoreBundle verifies the new Sigstore Protobuf Bundle format
+// (application/vnd.dev.sigstore.bundle+json). The certificate is stored as
+// raw DER bytes (base64 in JSON) and the signature is base64 ASN.1 DER.
+// Transparency log and timestamp material in the bundle is not independently
+// validated here — we use the embedded certificate to verify the signature
+// over the target file's SHA-256 digest.
+func (p *Provider) verifySigstoreBundle(bundle *cosign.SigstoreBundle, fileContent []byte) error {
+	p.Logger.Trace().Str("mediaType", bundle.MediaType).Msg("verifying sigstore bundle signature")
+
+	if bundle.MessageSignature == nil || bundle.MessageSignature.Signature == "" {
+		return errors.New("sigstore bundle missing message signature")
+	}
+
+	certB64 := bundle.LeafCertificate()
+	if certB64 == "" {
+		return errors.New("sigstore bundle missing signing certificate")
+	}
+
+	certDER, err := base64.StdEncoding.DecodeString(certB64)
+	if err != nil {
+		return fmt.Errorf("failed to decode sigstore certificate: %w", err)
+	}
+
+	pubKey, err := cosign.ParseCertificateDER(certDER)
+	if err != nil {
+		return fmt.Errorf("failed to parse sigstore certificate: %w", err)
+	}
+
+	// If the bundle advertises a message digest, confirm it matches what we
+	// computed from the downloaded content before doing the ECDSA verify.
+	dataHash := cosign.HashData(fileContent)
+	if md := bundle.MessageSignature.MessageDigest; md != nil && md.Digest != "" {
+		if md.Algorithm != "" && md.Algorithm != "SHA2_256" {
+			return fmt.Errorf("unsupported sigstore digest algorithm: %s", md.Algorithm)
+		}
+		expected, err := base64.StdEncoding.DecodeString(md.Digest)
+		if err != nil {
+			return fmt.Errorf("failed to decode sigstore message digest: %w", err)
+		}
+		if !bytes.Equal(expected, dataHash) {
+			return errors.New("sigstore message digest does not match signed content")
+		}
+	}
+
+	valid, err := cosign.VerifySignature(pubKey, dataHash, []byte(bundle.MessageSignature.Signature))
+	if err != nil {
+		return err
+	}
+	if !valid {
+		return errors.New("unable to validate sigstore signature")
+	}
+
+	p.Logger.Info().Msg("sigstore signature verified")
 	return nil
 }
 

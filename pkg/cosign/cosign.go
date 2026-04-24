@@ -9,6 +9,24 @@ import (
 	"errors"
 )
 
+// ParseCertificateDER parses a raw DER-encoded X.509 certificate and
+// returns its ECDSA public key. This is used for Sigstore Protobuf Bundles,
+// which store the signing certificate as base64-encoded raw DER bytes
+// rather than PEM.
+func ParseCertificateDER(derBytes []byte) (*ecdsa.PublicKey, error) {
+	cert, err := x509.ParseCertificate(derBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	ecdsaPub, ok := cert.PublicKey.(*ecdsa.PublicKey)
+	if !ok {
+		return nil, errors.New("not ECDSA public key")
+	}
+
+	return ecdsaPub, nil
+}
+
 func ParsePublicKey(pemEncodedPubKey []byte) (*ecdsa.PublicKey, error) {
 	block, _ := pem.Decode(pemEncodedPubKey)
 	if block == nil || (block.Type != "PUBLIC KEY" && block.Type != "CERTIFICATE") {
