@@ -2,7 +2,6 @@ package provider_test
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -451,6 +450,82 @@ func TestSourceDiscover(t *testing.T) {
 			},
 		},
 		{
+			// ekristen/cryptkey signs only the checksum manifest; each
+			// platform artifact is verified transitively via that checksum.
+			name:    "cryptkey-sigstore-bundle",
+			version: "0.1.3",
+			filenames: []string{
+				"checksums.txt",
+				"checksums.txt.sigstore",
+				"cryptkey-v0.1.3-darwin-amd64.tar.gz",
+				"cryptkey-v0.1.3-darwin-amd64.tar.gz.sbom.json",
+				"cryptkey-v0.1.3-darwin-arm64.tar.gz",
+				"cryptkey-v0.1.3-darwin-arm64.tar.gz.sbom.json",
+				"cryptkey-v0.1.3-linux-amd64.tar.gz",
+				"cryptkey-v0.1.3-linux-amd64.tar.gz.sbom.json",
+				"cryptkey-v0.1.3-linux-arm64.tar.gz",
+				"cryptkey-v0.1.3-linux-arm64.tar.gz.sbom.json",
+			},
+			matrix: []testSourceDiscoverMatrix{
+				{
+					os:      "linux",
+					arch:    "amd64",
+					version: "0.1.3",
+					expected: testSourceDiscoverExpected{
+						binary:    "cryptkey-v0.1.3-linux-amd64.tar.gz",
+						checksum:  "checksums.txt",
+						signature: "checksums.txt.sigstore",
+					},
+				},
+				{
+					os:      "darwin",
+					arch:    "arm64",
+					version: "0.1.3",
+					expected: testSourceDiscoverExpected{
+						binary:    "cryptkey-v0.1.3-darwin-arm64.tar.gz",
+						checksum:  "checksums.txt",
+						signature: "checksums.txt.sigstore",
+					},
+				},
+			},
+		},
+		{
+			// Per-artifact sigstore.json bundles (the sigstore/cosign layout
+			// uses this in its own releases).
+			name:    "cosign-sigstore-json",
+			version: "3.0.6",
+			filenames: []string{
+				"cosign_checksums.txt",
+				"cosign_checksums.txt.sigstore.json",
+				"cosign-linux-amd64",
+				"cosign-linux-amd64.sigstore.json",
+				"cosign-darwin-arm64",
+				"cosign-darwin-arm64.sigstore.json",
+			},
+			matrix: []testSourceDiscoverMatrix{
+				{
+					os:      "linux",
+					arch:    "amd64",
+					version: "3.0.6",
+					expected: testSourceDiscoverExpected{
+						binary:    "cosign-linux-amd64",
+						checksum:  "cosign_checksums.txt",
+						signature: "cosign-linux-amd64.sigstore.json",
+					},
+				},
+				{
+					os:      "darwin",
+					arch:    "arm64",
+					version: "3.0.6",
+					expected: testSourceDiscoverExpected{
+						binary:    "cosign-darwin-arm64",
+						checksum:  "cosign_checksums.txt",
+						signature: "cosign-darwin-arm64.sigstore.json",
+					},
+				},
+			},
+		},
+		{
 			name:    "gitlab-runner",
 			version: "16.11.4",
 			filenames: []string{
@@ -885,17 +960,7 @@ func TestSourceDiscover(t *testing.T) {
 			t.Run(fmt.Sprintf("%s-%s-%s-%s%s", tc.name, m.version, m.os, m.arch, lib), func(t *testing.T) {
 				var assets []asset.IAsset
 				for _, filename := range tc.filenames {
-					newA := &asset.Asset{
-						Name:        filename,
-						DisplayName: filename,
-						OS:          m.os,
-						Arch:        m.arch,
-						Version:     m.version,
-					}
-					newA.Type = newA.Classify(newA.Name)
-					newA.ParentType = newA.Classify(strings.ReplaceAll(newA.Name, filepath.Ext(newA.Name), ""))
-
-					assets = append(assets, newA)
+					assets = append(assets, asset.New(filename, filename, m.os, m.arch, m.version))
 				}
 
 				testSource := provider.Provider{
