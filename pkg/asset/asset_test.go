@@ -144,11 +144,49 @@ func TestAssetTypes(t *testing.T) {
 			name:     "minisign-0.12-linux.tar.gz.minisig",
 			fileType: Signature,
 		},
+		{
+			name:     "dist-linux-amd64.tar.gz.sigstore.json",
+			fileType: Signature,
+		},
+		{
+			name:     "checksums.txt.sigstore.json",
+			fileType: Signature,
+		},
+		{
+			name:     "dist-linux-amd64.tar.gz.sigstore",
+			fileType: Signature,
+		},
+		{
+			name:     "checksums.txt.sigstore",
+			fileType: Signature,
+		},
 	}
 
 	for _, c := range cases {
 		asset := New(c.name, c.name, "linux", "amd64", "1.0.0")
 		assert.Equal(t, c.fileType, asset.GetType(), fmt.Sprintf("expected type to be %d, got %d for %s", c.fileType, asset.GetType(), c.name))
+	}
+}
+
+// TestSigstoreBundleParentType verifies the ParentType resolution for the
+// compound .sigstore.json extension points at the asset actually being
+// signed, so that discoverSignature picks the correct SignatureType.
+func TestSigstoreBundleParentType(t *testing.T) {
+	cases := []struct {
+		name       string
+		parentType Type
+	}{
+		{"dist-linux-amd64.tar.gz.sigstore.json", Archive},
+		{"checksums.txt.sigstore.json", Checksum},
+		{"cosign-linux-amd64.sigstore.json", Unknown},
+		{"dist-linux-amd64.tar.gz.sigstore", Archive},
+		{"checksums.txt.sigstore", Checksum},
+	}
+
+	for _, c := range cases {
+		a := New(c.name, c.name, "linux", "amd64", "1.0.0")
+		assert.Equal(t, Signature, a.GetType(), c.name)
+		assert.Equal(t, c.parentType, a.GetParentType(), fmt.Sprintf("parent type for %s", c.name))
 	}
 }
 

@@ -99,6 +99,10 @@ func New(name, displayName, osName, osArch, version string) *Asset {
 	if a.Type == Key || a.Type == Signature || a.Type == Checksum {
 		parentName := strings.ReplaceAll(name, filepath.Ext(name), "")
 		parentName = strings.TrimSuffix(parentName, "-keyless")
+		// Sigstore bundles use a compound extension (.sigstore.json); strip
+		// the inner ".sigstore" so the parent name resolves to the asset
+		// actually being signed.
+		parentName = strings.TrimSuffix(parentName, ".sigstore")
 
 		a.ParentType = a.Classify(parentName)
 	}
@@ -226,6 +230,16 @@ func (a *Asset) GetFilePath() string {
 // Classify determines the type of asset based on the file extension
 func (a *Asset) Classify(name string) Type { //nolint:gocyclo
 	aType := Unknown
+
+	// Sigstore Protobuf Bundles (new cosign bundle format) are JSON
+	// documents distributed as either `.sigstore` or `.sigstore.json`.
+	// Detect them before the generic extension switch so that names like
+	// `checksums.txt.sigstore` are not misclassified as Checksum via the
+	// substring fallback below.
+	lowerName := strings.ToLower(name)
+	if strings.HasSuffix(lowerName, ".sigstore") || strings.HasSuffix(lowerName, ".sigstore.json") {
+		return Signature
+	}
 
 	if ext := strings.TrimPrefix(filepath.Ext(name), "."); ext != "" {
 		switch filetype.GetType(ext) {
