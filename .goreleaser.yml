@@ -66,7 +66,6 @@ signs:
         "sign-blob",
         "--yes",
         "--oidc-provider=github",
-        "--oidc-issuer=https://token.actions.githubusercontent.com",
         "--bundle=${signature}",
         "${artifact}",
       ]
