@@ -16,14 +16,9 @@ import (
 	"testing"
 
 	"github.com/dsnet/compress/bzip2"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/ulikunitz/xz"
 )
-
-func init() {
-	logrus.SetLevel(logrus.TraceLevel)
-}
 
 func TestAsset(t *testing.T) {
 	cases := []struct {
@@ -35,6 +30,7 @@ func TestAsset(t *testing.T) {
 		{"test.tar.gz", "Test", Archive},
 		{"test.tar.gz.asc", "Test", Signature},
 		{"dist.tar.gz.sig", "dist.tar.gz.sig", Signature},
+		{"minisign-0.12-win64.zip.minisig", "minisign-0.12-win64.zip.minisig", Signature},
 	}
 
 	for _, c := range cases {
@@ -125,6 +121,10 @@ func TestAssetTypes(t *testing.T) {
 			fileType: Installer,
 		},
 		{
+			name:     "dist-linux-amd64.tar.gz.proof",
+			fileType: Signature,
+		},
+		{
 			name:     "dist-linux-amd64.sbom.json",
 			fileType: SBOM,
 		},
@@ -136,11 +136,57 @@ func TestAssetTypes(t *testing.T) {
 			name:     "dist-linux-amd64.sbom",
 			fileType: SBOM,
 		},
+		{
+			name:     "minisign-0.12-win64.zip.minisig",
+			fileType: Signature,
+		},
+		{
+			name:     "minisign-0.12-linux.tar.gz.minisig",
+			fileType: Signature,
+		},
+		{
+			name:     "dist-linux-amd64.tar.gz.sigstore.json",
+			fileType: Signature,
+		},
+		{
+			name:     "checksums.txt.sigstore.json",
+			fileType: Signature,
+		},
+		{
+			name:     "dist-linux-amd64.tar.gz.sigstore",
+			fileType: Signature,
+		},
+		{
+			name:     "checksums.txt.sigstore",
+			fileType: Signature,
+		},
 	}
 
 	for _, c := range cases {
 		asset := New(c.name, c.name, "linux", "amd64", "1.0.0")
 		assert.Equal(t, c.fileType, asset.GetType(), fmt.Sprintf("expected type to be %d, got %d for %s", c.fileType, asset.GetType(), c.name))
+	}
+}
+
+// TestSigstoreBundleParentType verifies the ParentType resolution for the
+// compound .sigstore.json extension points at the asset actually being
+// signed, so that discoverSignature picks the correct SignatureType.
+func TestSigstoreBundleParentType(t *testing.T) {
+	cases := []struct {
+		name       string
+		parentType Type
+	}{
+		{"dist-linux-amd64.tar.gz.sigstore.json", Archive},
+		{"checksums.txt.sigstore.json", Checksum},
+		{"cosign-linux-amd64.sigstore.json", Unknown},
+		{"dist-linux-amd64.tar.gz.sigstore", Archive},
+		{"checksums.txt.sigstore", Checksum},
+	}
+
+	for _, c := range cases {
+		a := New(c.name, c.name, "linux", "amd64", "1.0.0")
+		assert.Equal(t, Signature, a.GetType(), c.name)
+		assert.Equal(t, c.parentType, a.GetParentType(), fmt.Sprintf("parent type for %s", c.name))
 	}
 }
 
@@ -475,6 +521,33 @@ func TestAssetInstall(t *testing.T) {
 			},
 		},
 		{
+			name:    "age-v1.2.0-linux-amd64.tar.gz",
+			os:      "linux",
+			arch:    "amd64",
+			version: "1.2.0",
+			downloadFile: createTarGz(t, []internalFile{
+				{
+					name:    "age/age",
+					mode:    0755,
+					content: []byte{0x7F, 0x45, 0x4C, 0x46},
+				},
+				{
+					name:    "age/age-keygen",
+					mode:    0755,
+					content: []byte{0x7F, 0x45, 0x4C, 0x46},
+				},
+				{
+					name:    "age/LICENSE",
+					mode:    0644,
+					content: []byte("license text"),
+				},
+			}),
+			expectedFiles: []string{
+				"age",
+				"age-keygen",
+			},
+		},
+		{
 			name:         "delta-aarch64-apple-darwin",
 			os:           "darwin",
 			arch:         "arm64",
@@ -600,6 +673,54 @@ func TestAssetInstall(t *testing.T) {
 	}
 }
 
+func TestAssetExtractCleanup(t *testing.T) {
+	cases := []struct {
+		name         string
+		downloadFile string
+	}{
+		{
+			name: "archive-tar-gz",
+			downloadFile: createTarGz(t, []internalFile{
+				{
+					name:    "test-binary",
+					mode:    0755,
+					content: []byte{0x7F, 0x45, 0x4C, 0x46},
+				},
+			}),
+		},
+		{
+			name:         "archive-zip",
+			downloadFile: createZip(t, "test-binary", []byte{0x7F, 0x45, 0x4C, 0x46}),
+		},
+		{
+			name:         "direct-file",
+			downloadFile: createFile(t, []byte("binary content")),
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			asset := New("dist-linux-amd64.tar.gz", "dist", "linux", "amd64", "1.0.0")
+			if c.name == "direct-file" {
+				asset = New("dist-linux-amd64", "dist", "linux", "amd64", "1.0.0")
+			}
+			asset.DownloadPath = c.downloadFile
+
+			defer os.RemoveAll(c.downloadFile)
+
+			err := asset.Extract()
+			assert.NoError(t, err)
+			assert.DirExists(t, asset.TempDir)
+
+			// Verify cleanup succeeds — before the fix, this failed on Windows
+			// because Extract left file handles open, preventing deletion.
+			err = asset.Cleanup()
+			assert.NoError(t, err)
+			assert.NoDirExists(t, asset.TempDir)
+		})
+	}
+}
+
 // -- helper functions below --
 
 // createEmptyZip creates an empty zip file
@@ -616,6 +737,92 @@ func createEmptyZip(t *testing.T) string {
 	defer zw.Close()
 
 	return tmpFile.Name()
+}
+
+func TestCleanFilename(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name     string
+		assetOS  string
+		arch     string
+		version  string
+		input    string
+		expected string
+	}{
+		{
+			name:     "standard-binary",
+			assetOS:  "linux",
+			arch:     "amd64",
+			version:  "1.0.0",
+			input:    "tool-linux-amd64",
+			expected: "tool",
+		},
+		{
+			name:     "dot-delimited-binary",
+			assetOS:  "darwin",
+			arch:     "arm64",
+			version:  "2.37.1",
+			input:    "direnv.darwin-arm64",
+			expected: "direnv",
+		},
+		{
+			name:     "dot-delimited-binary-linux",
+			assetOS:  "linux",
+			arch:     "amd64",
+			version:  "2.37.1",
+			input:    "direnv.linux-amd64",
+			expected: "direnv",
+		},
+		{
+			name:     "versioned-dot-delimited-binary",
+			assetOS:  "linux",
+			arch:     "amd64",
+			version:  "3.12.2",
+			input:    "sops-v3.12.2.linux.amd64",
+			expected: "sops",
+		},
+		{
+			name:     "residual-version-like-substring",
+			assetOS:  "darwin",
+			arch:     "amd64",
+			version:  "1.12.3",
+			input:    "test-1.12.3-darwin-10.12-amd64",
+			expected: "test",
+		},
+		{
+			name:     "underscore-delimited",
+			assetOS:  "linux",
+			arch:     "amd64",
+			version:  "1.5.0",
+			input:    "terraform_1.5.0_linux_amd64",
+			expected: "terraform",
+		},
+		{
+			name:     "preserve-non-known-segments",
+			assetOS:  "linux",
+			arch:     "amd64",
+			version:  "1.0.0",
+			input:    "fancy-tool-extra-linux-amd64",
+			expected: "fancy-tool-extra",
+		},
+		{
+			name:     "windows-exe",
+			assetOS:  "windows",
+			arch:     "amd64",
+			version:  "3.12.2",
+			input:    "sops-v3.12.2.amd64.exe",
+			expected: "sops.exe",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			a := New(c.input, c.input, c.assetOS, c.arch, c.version)
+			result := a.cleanFilename(c.input)
+			assert.Equal(t, c.expected, result)
+		})
+	}
 }
 
 // createFile creates a temporary file with the given content

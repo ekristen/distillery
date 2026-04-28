@@ -23,22 +23,22 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         if: github.event_name == 'pull_request'
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         if: github.event_name != 'pull_request'
         with:
           fetch-depth: 0
       - name: setup-go
-        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
         with:
-          go-version: 1.24.x
-      - uses: anchore/sbom-action/download-syft@0b82b0b1a22399a1c542d4d656f70cd903571b5c # v0.21.1
+          go-version: 1.26.x
+      - uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
       - name: install cosign
-        uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
+        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
       - name: install quill
         env:
           QUILL_VERSION: 0.4.1
@@ -60,7 +60,7 @@ jobs:
         run: |
           echo "GORELEASER_ARGS=--snapshot --skip publish --skip sign" >> $GITHUB_ENV
       - name: setup-quill
-        uses: 1password/load-secrets-action@8d0d610af187e78a2772c2d18d627f4c52d3fbfb # v3
+        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4
         # Extra Safeguard - This ensures the secrets are only loaded on tag and a tag that the repo owner triggered
         if: startsWith(github.ref, 'refs/tags/') == true && github.actor == 'ekristen-dev[bot]'
         with:
@@ -73,7 +73,7 @@ jobs:
           QUILL_SIGN_PASSWORD: ${{ secrets.OP_QUILL_SIGN_PASSWORD }}
           QUILL_SIGN_P12: ${{ secrets.OP_QUILL_SIGN_P12 }}
       - name: run goreleaser
-        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6
+        uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29 # v7
         with:
           distribution: goreleaser
           version: latest
@@ -82,7 +82,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: upload artifacts
         if: ${{ github.event.pull_request.base.ref == 'main' || github.event_name == 'workflow_dispatch' }}
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: binaries
           path: dist/*.tar.gz

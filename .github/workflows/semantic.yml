@@ -21,11 +21,11 @@ jobs:
       id-token: write # to enable use of OIDC for npm provenance
     steps:
       - name: checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
       - name: setup node.js
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version: "lts/*"
       - name: generate-token
@@ -36,7 +36,7 @@ jobs:
           private_key: ${{ secrets.BOT2_APP_PEM }}
           revoke: true
       - name: release
-        uses: cycjimmy/semantic-release-action@v4
+        uses: cycjimmy/semantic-release-action@b12c8f6015dc215fe37bc154d4ad456dd3833c90 # v6.0.0
         env:
           GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
 

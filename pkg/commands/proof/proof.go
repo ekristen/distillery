@@ -1,12 +1,13 @@
 package proof
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
 	"github.com/ekristen/distillery/pkg/common"
 	"github.com/ekristen/distillery/pkg/config"
@@ -14,7 +15,7 @@ import (
 	"github.com/ekristen/distillery/pkg/inventory"
 )
 
-func Execute(c *cli.Context) error {
+func Execute(ctx context.Context, c *cli.Command) error {
 	cfg, err := config.New(c.String("config"))
 	if err != nil {
 		return err
@@ -44,18 +45,18 @@ func init() {
 	}
 
 	flags := []cli.Flag{
-		&cli.PathFlag{
+		&cli.StringFlag{
 			Name:    "config",
 			Aliases: []string{"c"},
 			Usage:   "Specify the configuration file to use",
-			EnvVars: []string{"DISTILLERY_CONFIG"},
+			Sources: cli.EnvVars("DISTILLERY_CONFIG"),
 			Value:   filepath.Join(cfgDir, fmt.Sprintf("%s.yaml", common.NAME)),
 		},
 		&cli.BoolFlag{
 			Name:    "latest-only",
 			Aliases: []string{"l"},
 			Usage:   "Include only the latest version of each binary in the proof",
-			EnvVars: []string{"DISTILLERY_PROOF_LATEST_ONLY"},
+			Sources: cli.EnvVars("DISTILLERY_PROOF_LATEST_ONLY"),
 		},
 	}
 

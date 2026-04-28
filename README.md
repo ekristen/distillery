@@ -15,12 +15,15 @@ and [Rust](https://www.rust-lang.org) have made it easy to compile binaries and 
 installers or dependencies. **I love homebrew**, but I think there's room for another tool.
 
 **dist**illery is a tool that is designed to make it easy to install binaries on your system from multiple different
-sources. It is designed to be simple and easy to use. It is **NOT** designed to be a package manager or handle complex
-dependencies, that's where homebrew shines.
+sources. It is designed to be straightforward and simple to use. It is **NOT** designed to be a package manager or
+handle complex dependencies, that's where homebrew shines.
 
-The goal of this project is to install binaries by leveraging the collective power of all the developers out there that
-are using tools like [goreleaser](https://goreleaser.com/) and [cargo-dist](https://github.com/axodotdev/cargo-dist)
-and many others to pre-compile their software and put their binaries up on GitHub or GitLab.
+The goal of this project is to install binaries by leveraging the collective power of all the developers out there. It
+is now 2026 and more and more developers are using tools like [goreleaser](https://goreleaser.com/) and [cargo-dist](https://github.com/axodotdev/cargo-dist)
+and many others to pre-compile their software and put their binaries up on GitHub, GitLab, or Codeberg. Tools like goreleaser are
+expanding to support other languages as well.
+
+Let's take advantage of that and make it easy to install those binaries on your system.
 
 ## Documentation
 
@@ -30,10 +33,11 @@ and many others to pre-compile their software and put their binaries up on GitHu
 
 - Simple to install binaries on your system from multiple sources
 - No reliance on a centralized repository of metadata like package managers
-- Support multiple platforms and architectures
+- Support for multiple platforms and architectures
 - Support private repositories (this was a feature removed from homebrew)
 - Support checksum verifications (if they exist)
-- Support signatures verifications (if they exist)
+- Support signature verifications (if they exist)
+- Configurable [aliases](https://dist.sh/config/aliases/) for shorthand binary names
 
 ## Quickstart
 
@@ -44,6 +48,12 @@ See full documentation at [Installation](https://dist.sh/installation/)
 ### macOS/Linux
 ```bash
 curl --proto '=https' --tlsv1.2 -LsSf https://get.dist.sh | sh
+```
+
+OR with `wget`
+
+```bash
+wget --https-only --secure-protocol=TLSv1_2 -qO- https://get.dist.sh | sh
 ```
 
 ### Windows
@@ -115,27 +125,50 @@ Install a binary from GitLab.
 dist install gitlab/gitlab-org/gitlab-runner
 ```
 
-Oftentimes installing from GitHub or GitLab is sufficient, but if you are on a macOS system and Homebrew
+Install a binary from Codeberg.
+```console
+dist install codeberg/forgejo-contrib/forgejo-cli
+```
+
+Usually installing from GitHub, GitLab, or Codeberg is enough, but if you are on a macOS system and Homebrew
 has the binary you want, you can install it using the `homebrew` scope. I would generally still recommend just
-installing from GitHub or GitLab directly.
+installing from GitHub or GitLab directly if it is available, but this is a nice fallback.
 
 ```console
 dist install homebrew/opentofu
 ```
 
+## Commands
+
+- **`dist install`** - Install binaries from sources (see examples above)
+- **`dist uninstall`** - Remove installed binaries (dry-run by default, use `--no-dry-run` to execute)
+- **`dist list`** - List all installed binaries and their versions
+- **`dist info`** - Display system info, config paths, and cache locations
+- **`dist run`** - Execute a [Distfile](https://dist.sh/distfile/) (batch installation file, similar to a Brewfile)
+- **`dist proof`** - Generate a Distfile from your currently installed binaries
+- **`dist clean`** - Clean up orphaned symlinks (dry-run by default, use `--no-dry-run` to execute)
+
 ## Supported Sources
 
 - GitHub
 - GitLab
+- Forgejo / Codeberg (Codeberg works out of the box; any Forgejo instance can be configured)
 - Homebrew (binaries only, if anything has a dependency, it will not work at this time)
 - Hashicorp (special handling for their releases, pointing to GitHub repos will automatically pass through)
 - Kubernetes (special handling for their releases, pointing to GitHub repos will automatically pass through)
+- Helm (special handling for Helm project releases on GitHub)
 
 ### Authentication
 
-Distillery supports authentication for GitHub and GitLab. There are CLI options to pass in a token, but the preferred
-method is to set the `DISTILLERY_GITHUB_TOKEN` or `DISTILLERY_GITLAB_TOKEN` environment variables using a tool like
+Distillery supports authentication for GitHub, GitLab, and Forgejo/Codeberg. There are CLI options to pass
+in a token, but the preferred method is to set the appropriate environment variable using a tool like
 [direnv](https://direnv.net/).
+
+| Source | Environment variable | CLI flag |
+|---|---|---|
+| GitHub | `DISTILLERY_GITHUB_TOKEN` | `--github-token` |
+| GitLab | `DISTILLERY_GITLAB_TOKEN` | `--gitlab-token` |
+| Forgejo / Codeberg | `DISTILLERY_FORGEJO_TOKEN` | `--forgejo-token` |
 
 ## Directory Structure
 
@@ -161,4 +194,25 @@ by the HTTP cache.
 
 If you need to delete your cache simply run `dist info` to identify the cache directory and remove it.
 
-**Note:** I may add a cache clear command in the future.
+#### Experimental: Distillery Pass-Through Cache
+
+Distillery includes an experimental cloud-based pass-through cache for GitHub API calls that helps avoid rate limits
+when you are **not** using a GitHub token. This is useful for public repositories when you don't want to set up
+authentication just to avoid rate limiting.
+
+To enable it, set the `DISTILLERY_USE_CACHE` environment variable or use the `--use-dist-cache` flag:
+
+```bash
+export DISTILLERY_USE_CACHE=true
+dist install ekristen/aws-nuke
+```
+
+Or per-command:
+
+```console
+dist install --use-dist-cache ekristen/aws-nuke
+```
+
+**Note:** This only works for unauthenticated requests to public repositories. If you have `DISTILLERY_GITHUB_TOKEN`
+set, the pass-through cache is not used. The cache service only logs hits and misses for debug purposes; no other
+data is retained.

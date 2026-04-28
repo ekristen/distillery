@@ -2,21 +2,16 @@ package provider_test
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/ekristen/distillery/pkg/asset"
 	"github.com/ekristen/distillery/pkg/osconfig"
 	"github.com/ekristen/distillery/pkg/provider"
 )
-
-func init() {
-	logrus.SetLevel(logrus.TraceLevel)
-}
 
 type testSourceDiscoverTest struct {
 	name      string
@@ -28,6 +23,7 @@ type testSourceDiscoverTest struct {
 type testSourceDiscoverMatrix struct {
 	os       string
 	arch     string
+	library  string
 	version  string
 	expected testSourceDiscoverExpected
 }
@@ -454,6 +450,82 @@ func TestSourceDiscover(t *testing.T) {
 			},
 		},
 		{
+			// ekristen/cryptkey signs only the checksum manifest; each
+			// platform artifact is verified transitively via that checksum.
+			name:    "cryptkey-sigstore-bundle",
+			version: "0.1.3",
+			filenames: []string{
+				"checksums.txt",
+				"checksums.txt.sigstore",
+				"cryptkey-v0.1.3-darwin-amd64.tar.gz",
+				"cryptkey-v0.1.3-darwin-amd64.tar.gz.sbom.json",
+				"cryptkey-v0.1.3-darwin-arm64.tar.gz",
+				"cryptkey-v0.1.3-darwin-arm64.tar.gz.sbom.json",
+				"cryptkey-v0.1.3-linux-amd64.tar.gz",
+				"cryptkey-v0.1.3-linux-amd64.tar.gz.sbom.json",
+				"cryptkey-v0.1.3-linux-arm64.tar.gz",
+				"cryptkey-v0.1.3-linux-arm64.tar.gz.sbom.json",
+			},
+			matrix: []testSourceDiscoverMatrix{
+				{
+					os:      "linux",
+					arch:    "amd64",
+					version: "0.1.3",
+					expected: testSourceDiscoverExpected{
+						binary:    "cryptkey-v0.1.3-linux-amd64.tar.gz",
+						checksum:  "checksums.txt",
+						signature: "checksums.txt.sigstore",
+					},
+				},
+				{
+					os:      "darwin",
+					arch:    "arm64",
+					version: "0.1.3",
+					expected: testSourceDiscoverExpected{
+						binary:    "cryptkey-v0.1.3-darwin-arm64.tar.gz",
+						checksum:  "checksums.txt",
+						signature: "checksums.txt.sigstore",
+					},
+				},
+			},
+		},
+		{
+			// Per-artifact sigstore.json bundles (the sigstore/cosign layout
+			// uses this in its own releases).
+			name:    "cosign-sigstore-json",
+			version: "3.0.6",
+			filenames: []string{
+				"cosign_checksums.txt",
+				"cosign_checksums.txt.sigstore.json",
+				"cosign-linux-amd64",
+				"cosign-linux-amd64.sigstore.json",
+				"cosign-darwin-arm64",
+				"cosign-darwin-arm64.sigstore.json",
+			},
+			matrix: []testSourceDiscoverMatrix{
+				{
+					os:      "linux",
+					arch:    "amd64",
+					version: "3.0.6",
+					expected: testSourceDiscoverExpected{
+						binary:    "cosign-linux-amd64",
+						checksum:  "cosign_checksums.txt",
+						signature: "cosign-linux-amd64.sigstore.json",
+					},
+				},
+				{
+					os:      "darwin",
+					arch:    "arm64",
+					version: "3.0.6",
+					expected: testSourceDiscoverExpected{
+						binary:    "cosign-darwin-arm64",
+						checksum:  "cosign_checksums.txt",
+						signature: "cosign-darwin-arm64.sigstore.json",
+					},
+				},
+			},
+		},
+		{
 			name:    "gitlab-runner",
 			version: "16.11.4",
 			filenames: []string{
@@ -717,29 +789,182 @@ func TestSourceDiscover(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:    "boxdot/gurk-rs",
+			version: "0.7.1",
+			filenames: []string{
+				"gurk-aarch64-apple-darwin.tar.gz",
+				"gurk-aarch64-unknown-linux-gnu.tar.gz",
+				"gurk-aarch64-unknown-linux-musl.tar.gz",
+				"gurk-x86_64-apple-darwin.tar.gz",
+				"gurk-x86_64-unknown-linux-gnu.tar.gz",
+				"gurk-x86_64-unknown-linux-musl.tar.gz",
+			},
+			matrix: []testSourceDiscoverMatrix{
+				{
+					os:      "darwin",
+					arch:    "arm64",
+					version: "0.7.1",
+					expected: testSourceDiscoverExpected{
+						binary: "gurk-aarch64-apple-darwin.tar.gz",
+					},
+				},
+				{
+					os:      "darwin",
+					arch:    "amd64",
+					version: "0.7.1",
+					expected: testSourceDiscoverExpected{
+						binary: "gurk-x86_64-apple-darwin.tar.gz",
+					},
+				},
+				{
+					os:      "linux",
+					arch:    "amd64",
+					version: "0.7.1",
+					expected: testSourceDiscoverExpected{
+						binary: "gurk-x86_64-unknown-linux-gnu.tar.gz",
+					},
+				},
+				{
+					os:      "linux",
+					arch:    "arm64",
+					version: "0.7.1",
+					library: "musl",
+					expected: testSourceDiscoverExpected{
+						binary: "gurk-aarch64-unknown-linux-musl.tar.gz",
+					},
+				},
+			},
+		},
+		{
+			name:    "unfrl/dug",
+			version: "0.0.94",
+			filenames: []string{
+				"dug-linux-arm64",
+				"dug-linux-x64",
+				"dug-osx-x64",
+				"dug.0.0.94.linux-arm64.deb",
+				"dug.0.0.94.linux-x64.deb",
+				"dug.0.0.94.linux-x64.rpm",
+				"dug.0.0.94.linux-x64.tar.gz",
+				"dug.0.0.94.nupkg",
+				"dug.0.0.94.osx-x64.tar.gz",
+				"dug.exe",
+			},
+			matrix: []testSourceDiscoverMatrix{
+				{
+					os:      "darwin",
+					arch:    "amd64",
+					version: "0.0.94",
+					expected: testSourceDiscoverExpected{
+						binary: "dug.0.0.94.osx-x64.tar.gz",
+					},
+				},
+				{
+					os:      "linux",
+					arch:    "amd64",
+					version: "0.0.94",
+					expected: testSourceDiscoverExpected{
+						binary: "dug.0.0.94.linux-x64.tar.gz",
+					},
+				},
+			},
+		},
+		{
+			name:    "dnaka91/otti",
+			version: "0.2.7",
+			filenames: []string{
+				"checksums.b2",
+				"checksums.sha256",
+				"checksums.sha512",
+				"otti-aarch64-apple-darwin.tar.gz",
+				"otti-aarch64-pc-windows-msvc.zip",
+				"otti-aarch64-unknown-linux-gnu.tar.gz",
+				"otti-aarch64-unknown-linux-musl.tar.gz",
+				"otti-armv7-unknown-linux-gnueabihf.tar.gz",
+				"otti-armv7-unknown-linux-musleabihf.tar.gz",
+				"otti-x86_64-apple-darwin.tar.gz",
+				"otti-x86_64-pc-windows-gnu.zip",
+				"otti-x86_64-pc-windows-msvc.zip",
+				"otti-x86_64-unknown-linux-gnu.tar.gz",
+				"otti-x86_64-unknown-linux-musl.tar.gz",
+			},
+			matrix: []testSourceDiscoverMatrix{
+				{
+					os:      "darwin",
+					arch:    "amd64",
+					version: "0.2.7",
+					expected: testSourceDiscoverExpected{
+						binary:   "otti-x86_64-apple-darwin.tar.gz",
+						checksum: "checksums.sha512",
+					},
+				},
+				{
+					os:      "darwin",
+					arch:    "arm64",
+					version: "0.2.7",
+					expected: testSourceDiscoverExpected{
+						binary:   "otti-aarch64-apple-darwin.tar.gz",
+						checksum: "checksums.sha512",
+					},
+				},
+				{
+					os:      "linux",
+					arch:    "amd64",
+					version: "0.2.7",
+					expected: testSourceDiscoverExpected{
+						binary:   "otti-x86_64-unknown-linux-gnu.tar.gz",
+						checksum: "checksums.sha512",
+					},
+				},
+				{
+					os:      "linux",
+					arch:    "amd64",
+					version: "0.2.7",
+					library: "musl",
+					expected: testSourceDiscoverExpected{
+						binary:   "otti-x86_64-unknown-linux-musl.tar.gz",
+						checksum: "checksums.sha512",
+					},
+				},
+				{
+					os:      "linux",
+					arch:    "arm32",
+					version: "0.2.7",
+					expected: testSourceDiscoverExpected{
+						binary:   "otti-armv7-unknown-linux-gnueabihf.tar.gz",
+						checksum: "checksums.sha512",
+					},
+				},
+				{
+					os:      "linux",
+					arch:    "arm32",
+					version: "0.2.7",
+					library: "musl",
+					expected: testSourceDiscoverExpected{
+						binary:   "otti-armv7-unknown-linux-musleabihf.tar.gz",
+						checksum: "checksums.sha512",
+					},
+				},
+			},
+		},
 	}
 
 	t.Parallel()
 	for _, tc := range cases {
 		for _, m := range tc.matrix {
-			t.Run(fmt.Sprintf("%s-%s-%s-%s", tc.name, m.version, m.os, m.arch), func(t *testing.T) {
+			lib := ""
+			if m.library != "" {
+				lib = fmt.Sprintf("-%s", m.library)
+			}
+			t.Run(fmt.Sprintf("%s-%s-%s-%s%s", tc.name, m.version, m.os, m.arch, lib), func(t *testing.T) {
 				var assets []asset.IAsset
 				for _, filename := range tc.filenames {
-					newA := &asset.Asset{
-						Name:        filename,
-						DisplayName: filename,
-						OS:          m.os,
-						Arch:        m.arch,
-						Version:     m.version,
-					}
-					newA.Type = newA.Classify(newA.Name)
-					newA.ParentType = newA.Classify(strings.ReplaceAll(newA.Name, filepath.Ext(newA.Name), ""))
-
-					assets = append(assets, newA)
+					assets = append(assets, asset.New(filename, filename, m.os, m.arch, m.version))
 				}
 
 				testSource := provider.Provider{
-					OSConfig: osconfig.New(m.os, m.arch),
+					OSConfig: osconfig.New(m.os, m.arch, m.library),
 					Options: &provider.Options{
 						OS:   m.os,
 						Arch: m.arch,
@@ -748,9 +973,10 @@ func TestSourceDiscover(t *testing.T) {
 						},
 					},
 					Assets: assets,
+					Logger: log.With().Str("test", "true").Logger(),
 				}
 
-				err := testSource.Discover([]string{tc.name}, tc.version)
+				err := testSource.Discover(strings.Split(tc.name, "/"), tc.version)
 				if m.expected.error != "" {
 					assert.EqualError(t, err, m.expected.error)
 					return

@@ -1,14 +1,17 @@
 package run
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
 	"sync"
 
-	"github.com/apex/log"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
+	"github.com/rs/zerolog/log"
+
+	"github.com/ekristen/distillery/pkg/commands/install"
 	"github.com/ekristen/distillery/pkg/common"
 	"github.com/ekristen/distillery/pkg/config"
 	"github.com/ekristen/distillery/pkg/distfile"
@@ -34,7 +37,7 @@ func discover(cwd string) (string, error) {
 	return "", errors.New("no Distfile found in current directory or $HOME")
 }
 
-func Execute(c *cli.Context) error { //nolint:gocyclo
+func Execute(ctx context.Context, c *cli.Command) error { //nolint:gocyclo,funlen
 	var df string
 	if c.Args().Len() == 0 {
 		// Check current working directory
@@ -68,13 +71,10 @@ func Execute(c *cli.Context) error { //nolint:gocyclo
 		return err
 	}
 
-	instCmd := common.GetCommand("install")
-
 	parallel := c.Int("parallel")
 
 	if parallel > 1 {
-		log.Warn("experimental feature: you are using parallel installs, it might not work as expected")
-		log.Warn("experimental feature: all logging output will be mixed together")
+		log.Info().Msgf("running parallel installs with concurrency: %d", parallel)
 	}
 
 	var wg sync.WaitGroup
@@ -82,28 +82,47 @@ func Execute(c *cli.Context) error { //nolint:gocyclo
 
 	sem := make(chan struct{}, parallel)
 
-	for _, command := range commands {
+	for i, command := range commands {
 		if command.Action == "install" {
 			wg.Add(1)
-			go func(command distfile.Command) {
+			go func(_ int, command distfile.Command) {
 				defer wg.Done()
 				sem <- struct{}{}
 				defer func() { <-sem }()
 
-				ctx := cli.NewContext(c.App, nil, nil)
-				args := append([]string{"install"}, command.Args...)
-				if installErr := instCmd.Run(ctx, args...); installErr != nil {
-					errCh <- installErr
-					log.WithError(installErr).Error("error running install command")
+				// Build install options from the distfile command args and
+				// inherit shared settings from the run command's CLI flags.
+				app := command.Args[0]
+
+				opts := &install.Options{
+					App:                app,
+					Version:            "latest",
+					OS:                 c.String("os"),
+					Arch:               c.String("arch"),
+					Force:              c.Bool("force"),
+					Config:             cfg,
+					GitHubToken:        c.String("github-token"),
+					GitLabToken:        c.String("gitlab-token"),
+					NoSignatureVerify:  c.Bool("no-signature-verify"),
+					NoChecksumVerify:   c.Bool("no-checksum-verify"),
+					NoScoreCheck:       c.Bool("no-score-check"),
+					IncludePreReleases: c.Bool("include-pre-releases"),
+					UseDistCache:       c.Bool("use-dist-cache"),
+					DistCacheURL:       c.String("dist-cache-url"),
+					Logger:             log.Logger,
 				}
-			}(command)
+
+				if installErr := install.DoInstall(ctx, opts); installErr != nil {
+					errCh <- installErr
+				}
+			}(i, command)
 		} else {
 			// this is for any other action that's detected that we don't support right now
 			wg.Done()
 		}
 
 		select {
-		case <-c.Context.Done():
+		case <-ctx.Done():
 			return nil
 		default:
 			continue
@@ -115,6 +134,7 @@ func Execute(c *cli.Context) error { //nolint:gocyclo
 
 	var didError bool
 	for err := range errCh {
+		log.Error().Err(err).Msg("error encountered")
 		if err != nil {
 			didError = true
 		}
@@ -143,7 +163,7 @@ func init() {
 		Description: `run a Distfile to install binaries`,
 		Action:      Execute,
 		Before:      common.Before,
-		Flags:       append(flags, common.Flags()...),
+		Flags:       append(flags, install.Flags()...),
 	}
 
 	common.RegisterCommand(cmd)

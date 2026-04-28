@@ -11,7 +11,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: set-version
         run: |
@@ -27,10 +27,9 @@ jobs:
           revoke: true
 
       - name: upload
-        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
         with:
+          token: ${{ steps.generate_token.outputs.token }}
           files: |
             installer.sh
             installer.ps1
-        env:
-          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}

@@ -21,6 +21,9 @@ builds:
     goarm:
       - "6"
       - "7"
+    ignore:
+      - goos: windows
+        goarch: arm
     flags:
       - -trimpath
     ldflags:
@@ -46,26 +49,24 @@ sboms:
   - artifacts: archive
 archives:
   - id: distillery
-    builds:
+    ids:
       - distillery
     name_template: "{{ .ProjectName }}-v{{ .Version }}-{{ .Os }}-{{ .Arch }}{{ .Arm }}"
     format_overrides:
       - goos: windows
-        format: zip
+        formats:
+          - zip
 signs:
   - ids:
       - default
     cmd: cosign
-    signature: "${artifact}.sig"
-    certificate: "${artifact}.pem"
+    signature: "${artifact}.sigstore"
     args:
       [
         "sign-blob",
         "--yes",
         "--oidc-provider=github",
-        "--oidc-issuer=https://token.actions.githubusercontent.com",
-        "--output-certificate=${certificate}",
-        "--output-signature=${signature}",
+        "--bundle=${signature}",
         "${artifact}",
       ]
     artifacts: all

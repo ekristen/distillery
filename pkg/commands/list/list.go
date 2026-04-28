@@ -1,18 +1,23 @@
 package list
 
 import (
+	"context"
+	"fmt"
 	"os"
+	"sort"
+	"strconv"
 	"strings"
 
-	"github.com/apex/log"
-	"github.com/urfave/cli/v2"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/table"
+	"github.com/urfave/cli/v3"
 
 	"github.com/ekristen/distillery/pkg/common"
 	"github.com/ekristen/distillery/pkg/config"
 	"github.com/ekristen/distillery/pkg/inventory"
 )
 
-func Execute(c *cli.Context) error {
+func Execute(ctx context.Context, c *cli.Command) error {
 	cfg, err := config.New(c.String("config"))
 	if err != nil {
 		return err
@@ -20,12 +25,47 @@ func Execute(c *cli.Context) error {
 
 	inv := inventory.New(os.DirFS(cfg.GetPath()), cfg.GetPath(), cfg.GetOptPath(), cfg)
 
+	var rows [][]string
 	for _, key := range inv.GetBinsSortedKeys() {
 		bin := inv.Bins[key]
-		log.Infof("%s (versions: %s)", key, strings.Join(bin.ListVersions(), ", "))
+		versions := bin.ListVersions()
+		sort.Strings(versions)
+		// Reverse to get latest first
+		for i, j := 0, len(versions)-1; i < j; i, j = i+1, j-1 {
+			versions[i], versions[j] = versions[j], versions[i]
+		}
+		displayVersions := versions
+		extra := ""
+		if len(versions) > 3 {
+			displayVersions = versions[:3]
+			extra = " (+" + strconv.Itoa(len(versions)-3) + ")"
+		}
+		rows = append(rows, []string{key, strings.Join(displayVersions, ", ") + extra})
 	}
 
+	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("6"))
+
+	t := table.New().
+		Headers("Name", "Versions").
+		Rows(rows...).
+		BorderStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("8"))).
+		StyleFunc(func(row, col int) lipgloss.Style {
+			if row == table.HeaderRow {
+				return headerStyle
+			}
+			return lipgloss.NewStyle()
+		})
+
+	fmt.Println(t.Render())
+
 	return nil
+}
+
+func Before(ctx context.Context, c *cli.Command) (context.Context, error) {
+	_ = c.Set("output", "text")
+	_ = c.Set("log-caller", "false")
+
+	return common.Before(ctx, c)
 }
 
 func init() {
@@ -33,7 +73,7 @@ func init() {
 		Name:        "list",
 		Usage:       "list installed binaries and versions",
 		Description: `list installed binaries and versions`,
-		Before:      common.Before,
+		Before:      Before,
 		Flags:       common.Flags(),
 		Action:      Execute,
 	}
