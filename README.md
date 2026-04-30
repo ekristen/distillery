@@ -45,7 +45,7 @@ See full documentation at [Installation](https://dist.sh/installation/)
 
 **Note:** the installation script **DO NOT CURRENTLY** try to modify your path, you will need to do that manually.
 
-### MacOS/Linux
+### macOS/Linux
 ```bash
 curl --proto '=https' --tlsv1.2 -LsSf https://get.dist.sh | sh
 ```
@@ -63,7 +63,7 @@ iwr https://get.dist.sh/install.ps1 -useb | iex
 
 ### Adjust Your Path
 
-#### MacOS/Linux
+#### macOS/Linux
 
 ```bash
 export PATH=$HOME/.distillery/bin:$PATH
@@ -181,7 +181,7 @@ This is the default directory structure that distillery uses. Some of this can b
       - example: `github/ekristen/aws-nuke/v2.15.0/aws-nuke`
       - example: `hashicorp/terraform/v0.14.7/terraform`
 - Cache directory (downloads, http caching)
-  - MacOS `$HOME/Library/Caches/distillery`
+  - macOS `$HOME/Library/Caches/distillery`
   - Linux `$HOME/.cache/distillery`
   - Windows `$HOME/AppData/Local/distillery`
 
@@ -192,7 +192,7 @@ store the ETag and Last-Modified headers from the server to determine if the fil
 used to store the downloaded file. The download cache is not used to determine if the file has changed, that is done
 by the HTTP cache.
 
-If you need to delete your cache simply run `dist info` identify the cache directory and remove it.
+If you need to delete your cache simply run `dist info` to identify the cache directory and remove it.
 
 #### Experimental: Distillery Pass-Through Cache
 

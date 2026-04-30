@@ -1,6 +1,6 @@
 ## Quickstart
 
-=== "MacOS/Linux"
+=== "macOS/Linux"
     ```bash
     curl --proto '=https' --tlsv1.2 -LsSf https://get.dist.sh | sh
     ```
