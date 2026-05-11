@@ -2,7 +2,7 @@
 
 ## Quickstart
 
-=== "MacOS/Linux"
+=== "macOS/Linux"
     ```bash
     curl --proto '=https' --tlsv1.2 -LsSf https://get.dist.sh | sh
     ```
@@ -18,7 +18,7 @@
 
 ## Unix-like Systems
 
-MacOS, Linux, FreeBSD and other Unix-like systems can use the following steps to install distillery.
+macOS, Linux, FreeBSD and other Unix-like systems can use the following steps to install distillery.
 
 1. Set your path `export PATH=$HOME/.distillery/bin:$PATH`
 2. Download the latest release from the [releases page](https://github.com/ekristen/distillery/releases)

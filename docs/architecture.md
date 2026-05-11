@@ -11,7 +11,7 @@ This is the default directory structure that distillery uses. Some of this can b
             - example: `github/ekristen/aws-nuke/v2.15.0/aws-nuke`
             - example: `hashicorp/terraform/v0.14.7/terraform`
 - Cache directory (downloads, http caching)
-    - MacOS `$HOME/Library/Caches/distillery`
+    - macOS `$HOME/Library/Caches/distillery`
     - Linux `$HOME/.cache/distillery`
     - Windows `$HOME/AppData/Local/distillery`
 
