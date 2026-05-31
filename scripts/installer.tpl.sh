@@ -73,11 +73,12 @@ validate_sha256() {
 	if command -v cosign >/dev/null 2>&1; then
 		echo "Verifying signatures..."
 		REF="refs/tags/$VERSION"
-		if ! cosign verify-blob \
+		if ! curl -sfLO "$RELEASES_URL/download/$VERSION/checksums.txt.sigstore"; then
+			echo "Failed to download signature bundle, continuing without verification."
+		elif ! cosign verify-blob \
        --certificate-identity-regexp "https://github.com/ekristen/distillery.*/.github/workflows/.*.yml@$REF" \
        --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
-       --cert "$RELEASES_URL/download/$VERSION/checksums.txt.pem" \
-       --signature "$RELEASES_URL/download/$VERSION/checksums.txt.sig" \
+       --bundle checksums.txt.sigstore \
        checksums.txt; then
         echo "Signature verification failed, continuing without verification."
     else
