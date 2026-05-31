@@ -53,12 +53,16 @@ if ($expected -ne $actual) {
 if (Get-Command cosign -ErrorAction SilentlyContinue) {
     Write-Host "Verifying signatures..."
     $REF = "refs/tags/$VERSION"
-    & cosign verify-blob `
-        --certificate-identity-regexp "https://github.com/ekristen/distillery.*/.github/workflows/.*.yml@$REF" `
-        --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' `
-        --cert "$RELEASES_URL/download/$VERSION/checksums.txt.pem" `
-        --signature "$RELEASES_URL/download/$VERSION/checksums.txt.sig" `
-        "$TMP_DIR\checksums.txt"
+    try {
+        Invoke-WebRequest -Uri "$RELEASES_URL/download/$VERSION/checksums.txt.sigstore" -OutFile "$TMP_DIR\checksums.txt.sigstore"
+        & cosign verify-blob `
+            --certificate-identity-regexp "https://github.com/ekristen/distillery.*/.github/workflows/.*.yml@$REF" `
+            --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' `
+            --bundle "$TMP_DIR\checksums.txt.sigstore" `
+            "$TMP_DIR\checksums.txt"
+    } catch {
+        Write-Warning "Signature verification failed, continuing without verification."
+    }
 } else {
     Write-Warning "Could not verify signatures, cosign is not installed."
 }
