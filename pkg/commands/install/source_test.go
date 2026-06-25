@@ -245,3 +245,105 @@ func Test_NewSource(t *testing.T) {
 		})
 	}
 }
+
+func Test_extractBinaryName(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		input      string
+		wantSrc    string
+		wantBinary string
+	}{
+		{
+			input:      "grafana/loki",
+			wantSrc:    "grafana/loki",
+			wantBinary: "",
+		},
+		{
+			input:      "grafana/loki:logcli",
+			wantSrc:    "grafana/loki",
+			wantBinary: "logcli",
+		},
+		{
+			input:      "grafana/loki:logcli@3.0.0",
+			wantSrc:    "grafana/loki@3.0.0",
+			wantBinary: "logcli",
+		},
+		{
+			input:      "grafana/loki@3.0.0:logcli",
+			wantSrc:    "grafana/loki@3.0.0",
+			wantBinary: "logcli",
+		},
+		{
+			input:      "github/grafana/loki:logcli@3.0.0",
+			wantSrc:    "github/grafana/loki@3.0.0",
+			wantBinary: "logcli",
+		},
+		{
+			input:      "github/grafana/loki@3.0.0:logcli",
+			wantSrc:    "github/grafana/loki@3.0.0",
+			wantBinary: "logcli",
+		},
+		{
+			input:      "ekristen/aws-nuke@3.1.1",
+			wantSrc:    "ekristen/aws-nuke@3.1.1",
+			wantBinary: "",
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.input, func(t *testing.T) {
+			gotSrc, gotHint := extractBinaryName(tt.input)
+			assert.Equal(t, tt.wantSrc, gotSrc)
+			assert.Equal(t, tt.wantBinary, gotHint)
+		})
+	}
+}
+
+func Test_NewSourceWithHint(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		source     string
+		wantBinary string
+		wantRepo   string
+	}{
+		{
+			source:     "grafana/loki:logcli",
+			wantBinary: "logcli",
+			wantRepo:   "loki",
+		},
+		{
+			source:     "grafana/loki:logcli@3.0.0",
+			wantBinary: "logcli",
+			wantRepo:   "loki",
+		},
+		{
+			source:     "grafana/loki@3.0.0:logcli",
+			wantBinary: "logcli",
+			wantRepo:   "loki",
+		},
+		{
+			source:     "github/grafana/loki:logcli",
+			wantBinary: "logcli",
+			wantRepo:   "loki",
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.source, func(t *testing.T) {
+			cfg, err := config.New("/tmp/test/path")
+			assert.NoError(t, err)
+
+			opts := &provider.Options{
+				Config:   cfg,
+				Settings: map[string]interface{}{},
+			}
+
+			got, err := NewSource(tt.source, opts)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantRepo, got.GetRepo())
+			assert.Equal(t, tt.wantBinary, opts.Settings["binary-hint"])
+		})
+	}
+}

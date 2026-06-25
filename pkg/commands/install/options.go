@@ -39,8 +39,10 @@ type Options struct {
 
 // resolveNameAndVersion resolves the app name and version from config aliases and CLI input.
 func resolveNameAndVersion(cfg *config.Config, appName, optVersion string, logger *zerolog.Logger) (name, version string) {
-	nameParts := strings.Split(appName, "@")
-	name = appName
+	// Strip binary name before alias lookup; preserve it to re-append after resolution
+	cleanedName, hint := extractBinaryName(appName)
+	nameParts := strings.Split(cleanedName, "@")
+	name = cleanedName
 	version = optVersion
 
 	alias := cfg.GetAlias(nameParts[0])
@@ -57,6 +59,11 @@ func resolveNameAndVersion(cfg *config.Config, appName, optVersion string, logge
 		name = fmt.Sprintf("%s@%s", name, version)
 	} else if len(nameParts) == 2 {
 		version = nameParts[1]
+	}
+
+	// Re-append binary name so NewSource can extract it
+	if hint != "" {
+		name = fmt.Sprintf("%s:%s", name, hint)
 	}
 
 	return name, version
@@ -97,6 +104,7 @@ func DoInstall(ctx context.Context, opts *Options) error {
 			"include-pre-releases": opts.IncludePreReleases,
 			"use-dist-cache":       opts.UseDistCache,
 			"dist-cache-url":       opts.DistCacheURL,
+			"binary-hint":          "",
 		},
 	})
 	if err != nil {
