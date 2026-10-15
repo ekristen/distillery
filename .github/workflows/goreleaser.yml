@@ -73,7 +73,7 @@ jobs:
           QUILL_SIGN_PASSWORD: ${{ secrets.OP_QUILL_SIGN_PASSWORD }}
           QUILL_SIGN_P12: ${{ secrets.OP_QUILL_SIGN_P12 }}
       - name: run goreleaser
-        uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29 # v7
+        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7
         with:
           distribution: goreleaser
           version: latest
