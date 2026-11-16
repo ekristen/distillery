@@ -27,7 +27,7 @@ jobs:
           revoke: true
 
       - name: upload
-        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3
         with:
           token: ${{ steps.generate_token.outputs.token }}
           files: |
