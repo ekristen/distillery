@@ -2,7 +2,9 @@
   "extends": [
     "config:best-practices"
   ],
-  "dependencyDashboard": true,
+  "dependencyDashboard": {
+    "enabled": true
+  },
   "minimumReleaseAge": "3 days",
   "prConcurrentLimit": 10,
   "platformAutomerge": true,
